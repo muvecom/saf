@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notificações Monitor SAF</title>
+    <style>
+        .saf-container {
+            font-family: sans-serif;
+            max-width: 400px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+        }
+        .saf-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .saf-input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .saf-button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .saf-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="saf-container">
+    <form action="https://api.muvecom.com.br/v1/54fa68b8-66e6-49dd-8be2-a0ac91396310" method="POST" class="saf-form-group">
+        <label for="email">Digite o email para ser notificado do Monitor SAF</label>
+        <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            placeholder="seu@email.com" 
+            required 
+            class="saf-input"
+        >
+        <button type="submit" class="saf-button">Enviar</button>
+    </form>
+</div>
+
+</body>
+</html>
