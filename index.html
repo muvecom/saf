@@ -55,11 +55,8 @@
 
         .logo-container img {
             height: 50px;
-            filter: brightness(1.5) drop-shadow(0 0 15px rgba(255, 255, 255, 0.8));
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            padding: 5px;
-            border-radius: 50%;
-            transition: all 0.3s ease;
+            filter: brightness(1.5) drop-shadow(0 0 20px rgba(255, 255, 255, 0.7));
+            transition: transform 0.3s ease;
         }
 
         .logo-container img:hover {
@@ -365,7 +362,7 @@
     </div>
 
     <script>
-        const WEBHOOK_URL = 'https://n8n.muvecom.com.br/webhook-test/a4e5db67-6733-4e37-b4ba-6a02ac23baf3';
+        const WEBHOOK_URL = 'https://api.muvecom.com.br/v1/a4e5db67-6733-4e37-b4ba-6a02ac23baf3';
         let RAW_MESSAGES = [];
 
         async function fetchData() {
