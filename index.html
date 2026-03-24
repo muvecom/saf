@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitor IA - Atendimento Humano (SAF)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
             --primary: #6366f1;
@@ -27,7 +30,7 @@
 
         body {
             background-color: var(--bg-dark);
-            background-image: 
+            background-image:
                 radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
             color: var(--text-main);
@@ -164,9 +167,23 @@
             font-weight: 600;
         }
 
-        .tag-sentiment-positivo { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
-        .tag-sentiment-neutro { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
-        .tag-sentiment-negativo { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .tag-sentiment-positivo {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+            border: 1px solid var(--accent-green);
+        }
+
+        .tag-sentiment-neutro {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-yellow);
+            border: 1px solid var(--accent-yellow);
+        }
+
+        .tag-sentiment-negativo {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+        }
 
         .score-badge {
             display: inline-flex;
@@ -190,25 +207,51 @@
         .spinner {
             width: 40px;
             height: 40px;
-            border: 3px solid rgba(255,255,255,0.1);
+            border: 3px solid rgba(255, 255, 255, 0.1);
             border-top-color: var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-bottom: 1rem;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
+
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         .refresh-btn {
@@ -232,6 +275,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <header>
@@ -240,11 +284,16 @@
             <p>Supervisão Inteligente: Backend (n8n) + Lógica Local (JS)</p>
         </div>
         <div style="display:flex; gap:1rem">
-            <select id="filter-agent" onchange="applyFilters()" style="background:var(--card-bg); color:white; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:0.75rem 1rem">
+            <select id="filter-agent" onchange="applyFilters()"
+                style="background:var(--card-bg); color:white; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:0.75rem 1rem">
                 <option value="all">Todos os Atendentes</option>
             </select>
             <button class="refresh-btn" onclick="fetchData()">
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                    </path>
+                </svg>
                 Sincronizar Dados
             </button>
         </div>
@@ -293,8 +342,8 @@
     </div>
 
     <script>
-        const WEBHOOK_URL = 'https://api.muvecom.com.br/v1/a4e5db67-6733-4e37-b4ba-6a02ac23baf3';
-        let RAW_DATA = [];
+        const WEBHOOK_URL = 'https://api.muvecom.com.br/v1/3E50667A42B8E046E5635E8072250E75';
+        let RAW_MESSAGES = [];
 
         async function fetchData() {
             const loading = document.getElementById('loading');
@@ -302,15 +351,30 @@
 
             try {
                 const response = await fetch(WEBHOOK_URL);
-                const data = await response.json();
-                
-                RAW_DATA = Array.isArray(data) ? data : null;
+                const json = await response.json();
+
+                let allMessages = [];
+                const entries = Array.isArray(json) ? json : [json];
+
+                entries.forEach(entry => {
+                    const source = entry.body || entry;
+                    
+                    // Extrai mensagens da Wazzup (formato esperado body.messages[])
+                    if (source.messages && Array.isArray(source.messages)) {
+                        allMessages = [...allMessages, ...source.messages];
+                    } 
+                    // Fallback para mensagens soltas (se o n8n já mandou o item direto)
+                    else if (source.chatId && source.text) {
+                        allMessages.push(source);
+                    }
+                });
+
+                RAW_MESSAGES = allMessages;
                 populateAgentFilter();
                 applyFilters();
             } catch (error) {
                 console.error('Erro na Fetch:', error);
-                RAW_DATA = null;
-                populateAgentFilter();
+                RAW_MESSAGES = [];
                 applyFilters();
             } finally {
                 loading.style.display = 'none';
@@ -319,8 +383,11 @@
 
         function populateAgentFilter() {
             const select = document.getElementById('filter-agent');
-            const agents = [...new Set(RAW_DATA.map(item => item.agent?.name || 'Sistema'))];
-            
+            // Pegamos apenas nomes de authorName que não são nulos
+            const agents = [...new Set(RAW_MESSAGES
+                .filter(m => m.authorName && m.authorName !== 'Admin')
+                .map(m => m.authorName))];
+
             select.innerHTML = '<option value="all">Todos os Atendentes</option>';
             agents.forEach(agent => {
                 const opt = document.createElement('option');
@@ -332,58 +399,121 @@
 
         function applyFilters() {
             const agentFilter = document.getElementById('filter-agent').value;
-            let filtered = RAW_DATA;
+            
+            // AGRUPAMENTO EM SESSÕES (Agrupar por chatId)
+            const sessionsMap = {};
 
+            RAW_MESSAGES.forEach(msg => {
+                const id = msg.chatId;
+                if (!sessionsMap[id]) {
+                    sessionsMap[id] = {
+                        chatId: id,
+                        customer_name: msg.contact?.name || 'Cliente ' + id.substring(id.length - 4),
+                        messages: [],
+                        last_message: '',
+                        last_time: null,
+                        last_agent: 'Sistema',
+                        is_waiting: false,
+                        total_msgs: 0
+                    };
+                }
+
+                sessionsMap[id].messages.push(msg);
+                sessionsMap[id].total_msgs++;
+
+                // Lógica de Atualização da "Capa" da Sessão
+                const msgDate = new Date(msg.dateTime);
+                if (!sessionsMap[id].last_time || msgDate > new Date(sessionsMap[id].last_time)) {
+                    sessionsMap[id].last_time = msg.dateTime;
+                    sessionsMap[id].last_message = msg.text;
+                    sessionsMap[id].is_waiting = !msg.isEcho; // Se a última não é echo, estamos esperando o humano
+                    
+                    if (msg.isEcho && msg.authorName) {
+                        sessionsMap[id].last_agent = msg.authorName;
+                    }
+                }
+            });
+
+            let sessions = Object.values(sessionsMap);
+
+            // Filtro por Atendente (quem deu a última resposta ou está na sessão)
             if (agentFilter !== 'all') {
-                filtered = RAW_DATA.filter(item => (item.agent?.name || 'Sistema') === agentFilter);
+                sessions = sessions.filter(s => s.last_agent === agentFilter);
             }
 
-            renderData(filtered);
+            // Ordenar por horário da mensagem mais recente
+            sessions.sort((a, b) => new Date(b.last_time) - new Date(a.last_time));
+
+            renderData(sessions);
         }
 
-        function renderData(items) {
+        function renderData(sessions) {
             const tableBody = document.getElementById('table-body');
             tableBody.innerHTML = '';
-            
-            let totalScore = 0;
-            let totalMsgs = 0;
+
             let criticalCount = 0;
 
-            items.forEach(item => {
+            sessions.forEach(session => {
                 const row = document.createElement('tr');
                 
-                const msgCount = Array.isArray(item.messages) ? item.messages.length : 0;
-                totalMsgs += msgCount;
+                const initials = session.customer_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                const timeStr = new Date(session.last_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const dateStr = new Date(session.last_time).toLocaleDateString('pt-BR');
                 
-                const initials = item.customer_name ? item.customer_name.split(' ').map(n => n[0]).join('').substring(0,2) : '??';
-                const sentimentClass = `tag-sentiment-${(item.ai_sentiment || 'neutro').toLowerCase()}`;
-                
-                totalScore += (item.ai_score || 0);
-                if (item.ai_sentiment?.toLowerCase() === 'negativo') criticalCount++;
+                if (session.is_waiting) criticalCount++;
+
+                const statusTag = session.is_waiting ? 'tag-sentiment-negativo' : 'tag-sentiment-positivo';
+                const statusText = session.is_waiting ? 'Aguardando' : 'Respondido';
 
                 row.innerHTML = `
                     <td>
                         <div class="customer-pill">
                             <div class="avatar">${initials}</div>
                             <div>
-                                <div style="font-weight:600">${item.customer_name || 'Desconhecido'}</div>
-                                <div style="font-size:0.75rem; color:var(--text-muted)">ID: ${item.session_id}</div>
+                                <div style="font-weight:600">${session.customer_name}</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted)">ID: ${session.chatId}</div>
                             </div>
                         </div>
                     </td>
-                    <td><div style="font-weight:600; color:var(--primary)">${item.agent?.name || 'Em espera'}</div></td>
-                    <td><span style="font-size:0.8rem">Troca de mensagens: <b>${msgCount}</b></span></td>
-                    <td><span class="tag ${sentimentClass}">${item.ai_sentiment || 'Neutro'}</span></td>
-                    <td><div class="score-badge" style="color: ${getScoreColor(item.ai_score)}">${item.ai_score || '-'}</div></td>
-                    <td><button style="background:none; border: 1px solid rgba(255,255,255,0.1); color: white; padding: 5px 10px; border-radius:8px; cursor:pointer" onclick="console.log(${JSON.stringify(item)})">Log RAW</button></td>
+                    <td>
+                        <div style="font-weight:600; color:var(--primary)">${session.last_agent}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted)">Última resp.</div>
+                    </td>
+                    <td>
+                        <div style="font-size:0.85rem; max-width: 350px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${session.last_message}">
+                            ${session.last_message || '<i>Mensagem de mídia</i>'}
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-muted)">${dateStr} às ${timeStr}</div>
+                    </td>
+                    <td><span class="tag ${statusTag}">${statusText}</span></td>
+                    <td><div class="score-badge">${session.total_msgs}</div></td>
+                    <td>
+                        <button class="refresh-btn" style="padding: 5px 10px; font-size: 0.8rem; background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1)" 
+                                onclick="showHistory('${session.chatId}')">
+                            Histórico
+                        </button>
+                    </td>
                 `;
                 tableBody.appendChild(row);
             });
 
-            document.getElementById('count-sessions').textContent = items.length;
-            document.getElementById('count-messages').textContent = totalMsgs;
-            document.getElementById('avg-score').textContent = items.length ? (totalScore / items.length).toFixed(1) : '0.0';
+            document.getElementById('count-sessions').textContent = sessions.length;
+            document.getElementById('count-messages').textContent = RAW_MESSAGES.length;
+            document.getElementById('avg-score').textContent = (RAW_MESSAGES.length / (sessions.length || 1)).toFixed(1);
             document.getElementById('count-critical').textContent = criticalCount;
+        }
+
+        function showHistory(chatId) {
+            const chat = RAW_MESSAGES
+                .filter(m => m.chatId === chatId)
+                .sort((a,b) => new Date(a.dateTime) - new Date(b.dateTime));
+            
+            console.log(`--- HISTÓRICO DA CONVERSA: ${chatId} ---`);
+            chat.forEach(m => {
+                const label = m.isEcho ? `[${m.authorName || 'Atendente'}]` : `[Cliente]`;
+                console.log(`${new Date(m.dateTime).toLocaleString()} ${label}: ${m.text}`);
+            });
+            alert(`Histórico impresso no Console (F12) para análise detalhada.\nTotal de mensagens: ${chat.length}`);
         }
 
         function getScoreColor(score) {
@@ -393,7 +523,8 @@
         }
 
         fetchData();
-        setInterval(fetchData, 60000);
+        setInterval(fetchData, 30000); // 30 segundos
     </script>
 </body>
+
 </html>
