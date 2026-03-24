@@ -378,11 +378,9 @@
             </div>
         </div>
         <div style="display:flex; gap:0.5rem; align-items:center">
-            <span style="font-size:0.8rem; color:var(--text-muted)">Dia Inicial:</span>
             <input type="date" id="filter-date" onchange="applyFilters()"
                 style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
 
-            <span style="font-size:0.8rem; color:var(--text-muted)">A partir de:</span>
             <input type="time" id="filter-time" onchange="applyFilters()"
                 style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
 
@@ -534,12 +532,6 @@
 
                 RAW_MESSAGES = allMessages;
                 populateAgentFilter();
-
-                if (!document.getElementById('filter-date').value) {
-                    const today = new Date().toISOString().split('T')[0];
-                    document.getElementById('filter-date').value = today;
-                }
-
                 applyFilters();
             } catch (error) {
                 console.error('Erro na Fetch:', error);
@@ -653,6 +645,56 @@
             }
 
             renderPaginatedView();
+        }
+
+        function updateCharts(messages, sessions) {
+            const waiting = sessions.filter(s => s.is_waiting).length;
+            const responded = sessions.length - waiting;
+
+            if (pieChartInstance) pieChartInstance.destroy();
+            const ctxPie = document.getElementById('pieChart').getContext('2d');
+            pieChartInstance = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Aguardando', 'Respondido'],
+                    datasets: [{
+                        data: [waiting, responded],
+                        backgroundColor: ['#ef4444', '#22c55e'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { cutout: '70%', plugins: { legend: { display: false } } }
+            });
+
+            const hoursMap = {};
+            messages.forEach(m => {
+                const hour = new Date(m.dateTime).getHours();
+                hoursMap[hour] = (hoursMap[hour] || 0) + 1;
+            });
+
+            const labels = Array.from({length: 12}, (_, i) => (i + 8) + 'h'); 
+            const lineData = labels.map(l => hoursMap[parseInt(l)] || 0);
+
+            if (lineChartInstance) lineChartInstance.destroy();
+            const ctxLine = document.getElementById('lineChart').getContext('2d');
+            lineChartInstance = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Mensagens',
+                        data: lineData,
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: { 
+                    plugins: { legend: { display: false } },
+                    scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } }
+                }
+            });
         }
 
         function renderPaginatedView() {
@@ -781,14 +823,8 @@
             alert(`Histórico impresso no Console (F12) para análise detalhada.\nTotal de mensagens: ${chat.length}`);
         }
 
-        function getScoreColor(score) {
-            if (score >= 8) return 'var(--accent-green)';
-            if (score >= 5) return 'var(--accent-yellow)';
-            return 'var(--accent-red)';
-        }
-
         fetchData();
-        setInterval(fetchData, 30000); // 30 segundos
+        setInterval(fetchData, 30000); 
     </script>
 </body>
 
