@@ -348,7 +348,12 @@
             </div>
         </div>
         <div style="display:flex; gap:0.5rem; align-items:center">
+            <span style="font-size:0.8rem; color:var(--text-muted)">Dia:</span>
             <input type="date" id="filter-date" onchange="applyFilters()"
+                style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
+
+            <span style="font-size:0.8rem; color:var(--text-muted)">Hora Final:</span>
+            <input type="time" id="filter-time" onchange="applyFilters()"
                 style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
 
             <select id="filter-view" onchange="applyFilters()"
@@ -427,6 +432,7 @@
     </div>
 
     <script>
+        const WEBHOOK_URL = 'https://api.muvecom.com.br/v1/a4e5db67-6733-4e37-b4ba-6a02ac23baf3';
         const PAGE_SIZE = 100;
         let CURRENT_PAGE = 1;
         let FILTERED_DATA = []; // Armazena o lote atual filtrado para paginação
@@ -521,12 +527,23 @@
             const agentFilter = document.getElementById('filter-agent').value;
             const viewType = document.getElementById('filter-view').value;
             const dateFilter = document.getElementById('filter-date').value;
+            const timeFilter = document.getElementById('filter-time').value; // HH:mm
 
-            // 1. Filtro Global por Data
+            // 1. Filtro Global por Data e Hora
             let filteredMessages = RAW_MESSAGES.filter(m => {
-                if (!dateFilter) return true;
-                const msgDate = new Date(m.dateTime).toISOString().split('T')[0];
-                return msgDate === dateFilter;
+                const mDate = new Date(m.dateTime);
+                const msgFullDate = mDate.toISOString().split('T')[0];
+                
+                // Filtro de Data (Cumulativo: Daquela data em diante)
+                if (dateFilter && msgFullDate < dateFilter) return false;
+                
+                // Filtro de Hora (Se estiver no mesmo dia da data inicial)
+                if (timeFilter && msgFullDate === dateFilter) {
+                    const msgTime = mDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    return msgTime >= timeFilter; 
+                }
+                
+                return true;
             });
 
             // 2. Lógica para Timeline (Visão Rádio)
