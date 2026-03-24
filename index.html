@@ -47,21 +47,38 @@
             animation: fadeInDown 0.8s ease-out;
         }
 
-        .logo-container h1 {
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .logo-container img {
+            height: 45px;
+            filter: brightness(1.2) drop-shadow(0 0 10px rgba(255,255,255,0.2));
+            transition: transform 0.3s ease;
+        }
+
+        .logo-container img:hover {
+            transform: scale(1.05);
+        }
+
+        .logo-text h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 2.5rem;
+            font-size: 2.2rem;
             font-weight: 800;
             background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -1px;
+            margin: 0;
         }
 
-        .logo-container p {
+        .logo-text p {
             color: var(--text-muted);
-            font-size: 0.9rem;
-            margin-top: 0.2rem;
+            font-size: 0.85rem;
+            margin: 0;
         }
 
         .stats-grid {
@@ -280,8 +297,11 @@
 
     <header>
         <div class="logo-container">
-            <h1>Monitor IA SAF</h1>
-            <p>Supervisão Inteligente: Backend (n8n) + Lógica Local (JS)</p>
+            <img src="https://saf.com.br/wp-content/uploads/2025/12/gruposaf-300x212.png" alt="Logo Grupo SAF">
+            <div class="logo-text">
+                <h1>Painel SAF</h1>
+                <p>Monitoramento de Atendimento: Wazzup em Tempo Real</p>
+            </div>
         </div>
         <div style="display:flex; gap:1rem">
             <select id="filter-agent" onchange="applyFilters()"
@@ -342,7 +362,7 @@
     </div>
 
     <script>
-        const WEBHOOK_URL = 'https://api.muvecom.com.br/v1/3E50667A42B8E046E5635E8072250E75';
+        const WEBHOOK_URL = 'https://api.muvecom.com.br/v1/a4e5db67-6733-4e37-b4ba-6a02ac23baf3';
         let RAW_MESSAGES = [];
 
         async function fetchData() {
