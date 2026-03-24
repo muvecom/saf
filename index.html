@@ -91,16 +91,24 @@
 
         .stat-card {
             background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             padding: 1.5rem;
-            border-radius: 20px;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: 16px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
         }
 
         .stat-card:hover {
             transform: translateY(-5px);
+            background: rgba(255, 255, 255, 0.05);
             border-color: var(--primary);
+        }
+
+        .stat-card.active {
+            border-color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.05);
         }
 
         .stat-label {
@@ -213,6 +221,42 @@
             background: rgba(255, 255, 255, 0.05);
         }
 
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .pagination-btns {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .page-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
         .loading-container {
             display: flex;
             flex-direction: column;
@@ -303,71 +347,114 @@
                 <p>Monitoramento de Atendimento: em Tempo Real</p>
             </div>
         </div>
-        <div style="display:flex; gap:1rem">
+        <div style="display:flex; gap:0.5rem; align-items:center">
+            <input type="date" id="filter-date" onchange="applyFilters()"
+                style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
+
+            <select id="filter-view" onchange="applyFilters()"
+                style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
+                <option value="sessions">Visualizar Conversas</option>
+                <option value="timeline">Timeline de Atividade</option>
+            </select>
+
             <select id="filter-agent" onchange="applyFilters()"
-                style="background:var(--card-bg); color:white; border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:0.75rem 1rem">
+                style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px 15px; border-radius:10px; min-width:180px">
                 <option value="all">Todos os Atendentes</option>
             </select>
+
             <button class="refresh-btn" onclick="fetchData()">
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                    </path>
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
                 </svg>
-                Sincronizar Dados
             </button>
         </div>
     </header>
 
     <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-label">Total de Mensagens</div>
+        <div class="stat-card" onclick="setQuickFilter('all')">
+            <div class="stat-label">Total Conversas</div>
+            <div class="stat-value" id="count-sessions">0</div>
+        </div>
+        <div class="stat-card" onclick="setQuickFilter('total_msgs')">
+            <div class="stat-label">Total Mensagens</div>
             <div class="stat-value" id="count-messages">0</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Sessões Filtradas</div>
-            <div class="stat-value" id="count-sessions">0</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Média Score (IA)</div>
+            <div class="stat-label">Média Mensagens</div>
             <div class="stat-value" id="avg-score">0.0</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-label">Alertas Críticos</div>
+        <div id="card-critical" class="stat-card" onclick="setQuickFilter('critical')">
+            <div class="stat-label">Aguardando (Críticos)</div>
             <div class="stat-value" id="count-critical" style="color: var(--accent-red)">0</div>
         </div>
     </div>
 
     <div class="main-content">
-        <table id="data-table">
-            <thead>
-                <tr>
-                    <th>Cliente</th>
-                    <th>Atendente</th>
-                    <th>Monitoramento Local (Métricas)</th>
-                    <th>Sentimento (IA)</th>
-                    <th>Qualidade</th>
-                    <th>Visualizar</th>
-                </tr>
-            </thead>
-            <tbody id="table-body">
-                <!-- Data will be injected here -->
-            </tbody>
-        </table>
+        <div class="table-card">
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Atendente</th>
+                        <th>Última Mensagem</th>
+                        <th>Status</th>
+                        <th>Msgs</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Gerado via JS -->
+                </tbody>
+            </table>
 
-        <div id="loading" class="loading-container">
+            <div class="pagination">
+                <div id="pagination-info" style="font-size: 0.9rem; color: var(--text-muted)">
+                    Mostrando 0 de 0 registros
+                </div>
+                <div class="pagination-btns">
+                    <button id="prev-btn" class="page-btn" onclick="changePage(-1)" disabled>Anterior</button>
+                    <button id="next-btn" class="page-btn" onclick="changePage(1)" disabled>Próximo</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading-container"
+            style="display: none; justify-content: center; align-items: center; flex-direction: column; gap: 1rem; margin-top: 5rem;">
             <div class="spinner"></div>
             <p>Buscando dados...</p>
         </div>
     </div>
 
     <script>
-        const WEBHOOK_URL = 'https://api.muvecom.com.br/v1/a4e5db67-6733-4e37-b4ba-6a02ac23baf3';
+        const PAGE_SIZE = 100;
+        let CURRENT_PAGE = 1;
+        let FILTERED_DATA = []; // Armazena o lote atual filtrado para paginação
         let RAW_MESSAGES = [];
+        let CURRENT_QUICK_FILTER = 'all';
+
+        function changePage(direction) {
+            CURRENT_PAGE += direction;
+            renderPaginatedView();
+        }
+
+        function setQuickFilter(type) {
+            CURRENT_QUICK_FILTER = type;
+
+            // Visual feedback nos cards
+            document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+            if (type === 'critical') document.getElementById('card-critical').classList.add('active');
+
+            CURRENT_PAGE = 1; // Reseta página ao filtrar
+            applyFilters();
+        }
 
         async function fetchData() {
             const loading = document.getElementById('loading');
+            const tableCard = document.querySelector('.table-card');
+
             loading.style.display = 'flex';
+            tableCard.style.opacity = '0.5';
 
             try {
                 const response = await fetch(WEBHOOK_URL);
@@ -377,25 +464,19 @@
                 const entries = Array.isArray(json) ? json : [json];
 
                 entries.forEach(entry => {
-                    // Tenta encontrar a fonte verdadeira (pode estar em body ou na raiz)
                     const source = entry.body || entry;
-                    
-                    // 1. Caso: Array dentro de data[] (seu formato novo)
                     if (source.data && Array.isArray(source.data)) {
                         source.data.forEach(item => {
                             if (item.message) allMessages.push(item.message);
-                            else if (item.chatId) allMessages.push(item); // Assuming item itself is the message if it has chatId
+                            else if (item.chatId) allMessages.push(item);
                         });
                     }
-                    // 2. Caso: Array dentro de messages[] (formato n8n padrão)
                     else if (source.messages && Array.isArray(source.messages)) {
                         allMessages = [...allMessages, ...source.messages];
-                    } 
-                    // 3. Caso: Objeto único que contém a chave .message
+                    }
                     else if (source.message && typeof source.message === 'object') {
                         allMessages.push(source.message);
                     }
-                    // 4. Caso: Objeto plano (já extraído ou formato simples)
                     else if (source.chatId && (source.text || source.type)) {
                         allMessages.push(source);
                     }
@@ -403,6 +484,12 @@
 
                 RAW_MESSAGES = allMessages;
                 populateAgentFilter();
+
+                if (!document.getElementById('filter-date').value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    document.getElementById('filter-date').value = today;
+                }
+
                 applyFilters();
             } catch (error) {
                 console.error('Erro na Fetch:', error);
@@ -410,6 +497,7 @@
                 applyFilters();
             } finally {
                 loading.style.display = 'none';
+                tableCard.style.opacity = '1';
             }
         }
 
@@ -431,71 +519,146 @@
 
         function applyFilters() {
             const agentFilter = document.getElementById('filter-agent').value;
+            const viewType = document.getElementById('filter-view').value;
+            const dateFilter = document.getElementById('filter-date').value;
 
-            // AGRUPAMENTO EM SESSÕES (Agrupar por chatId)
-            const sessionsMap = {};
-
-            RAW_MESSAGES.forEach(msg => {
-                const id = msg.chatId;
-                if (!sessionsMap[id]) {
-                    sessionsMap[id] = {
-                        chatId: id,
-                        customer_name: msg.contact?.name || 'Cliente ' + id.substring(id.length - 4),
-                        messages: [],
-                        last_message: '',
-                        last_time: null,
-                        last_agent: 'Sistema',
-                        is_waiting: false,
-                        total_msgs: 0
-                    };
-                }
-
-                sessionsMap[id].messages.push(msg);
-                sessionsMap[id].total_msgs++;
-
-                // Lógica de Atualização da "Capa" da Sessão
-                const msgDate = new Date(msg.dateTime);
-                if (!sessionsMap[id].last_time || msgDate > new Date(sessionsMap[id].last_time)) {
-                    sessionsMap[id].last_time = msg.dateTime;
-                    sessionsMap[id].last_message = msg.text;
-                    sessionsMap[id].is_waiting = !msg.isEcho; // Se a última não é echo, estamos esperando o humano
-
-                    if (msg.isEcho && msg.authorName) {
-                        sessionsMap[id].last_agent = msg.authorName;
-                    }
-                }
+            // 1. Filtro Global por Data
+            let filteredMessages = RAW_MESSAGES.filter(m => {
+                if (!dateFilter) return true;
+                const msgDate = new Date(m.dateTime).toISOString().split('T')[0];
+                return msgDate === dateFilter;
             });
 
-            let sessions = Object.values(sessionsMap);
+            // 2. Lógica para Timeline (Visão Rádio)
+            if (viewType === 'timeline') {
+                let timelineItems = filteredMessages.sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
+                if (agentFilter !== 'all') {
+                    timelineItems = timelineItems.filter(m => m.authorName === agentFilter);
+                }
+                FILTERED_DATA = timelineItems;
+                updateStats(filteredMessages);
+            }
+            // 3. Lógica para Sessões (Agregado)
+            else {
+                const sessionsMap = {};
+                filteredMessages.forEach(msg => {
+                    const id = msg.chatId || 'Desconhecido';
+                    if (!sessionsMap[id]) {
+                        sessionsMap[id] = {
+                            chatId: id,
+                            customer_name: msg.contact?.name || 'Cliente ' + id.substring(id.length - 4),
+                            messages: [],
+                            last_message: '',
+                            last_time: null,
+                            last_agent: 'Sistema',
+                            is_waiting: false,
+                            total_msgs: 0
+                        };
+                    }
+                    sessionsMap[id].messages.push(msg);
+                    sessionsMap[id].total_msgs++;
 
-            // Filtro por Atendente (quem deu a última resposta ou está na sessão)
-            if (agentFilter !== 'all') {
-                sessions = sessions.filter(s => s.last_agent === agentFilter);
+                    const msgDate = new Date(msg.dateTime);
+                    if (!sessionsMap[id].last_time || msgDate > new Date(sessionsMap[id].last_time)) {
+                        sessionsMap[id].last_time = msg.dateTime;
+                        sessionsMap[id].last_message = msg.text || `[${msg.type || 'Mídia'}]`;
+                        sessionsMap[id].is_waiting = !msg.isEcho;
+                        if (msg.isEcho && msg.authorName) sessionsMap[id].last_agent = msg.authorName;
+                    }
+                });
+
+                let sessions = Object.values(sessionsMap);
+                if (agentFilter !== 'all') sessions = sessions.filter(s => s.last_agent === agentFilter);
+                if (CURRENT_QUICK_FILTER === 'critical') sessions = sessions.filter(s => s.is_waiting);
+
+                sessions.sort((a, b) => new Date(b.last_time) - new Date(a.last_time));
+                FILTERED_DATA = sessions;
+                updateStats(filteredMessages, sessions);
             }
 
-            // Ordenar por horário da mensagem mais recente
-            sessions.sort((a, b) => new Date(b.last_time) - new Date(a.last_time));
-
-            renderData(sessions);
+            renderPaginatedView();
         }
 
-        function renderData(sessions) {
+        function renderPaginatedView() {
+            const startIndex = (CURRENT_PAGE - 1) * PAGE_SIZE;
+            const endIndex = startIndex + PAGE_SIZE;
+            const pageData = FILTERED_DATA.slice(startIndex, endIndex);
+            const viewType = document.getElementById('filter-view').value;
+
+            if (viewType === 'timeline') renderTimeline(pageData);
+            else renderSessions(pageData);
+
+            // Atualiza UI da Paginação
+            const total = FILTERED_DATA.length;
+            document.getElementById('pagination-info').textContent =
+                `Mostrando ${Math.min(startIndex + 1, total)}-${Math.min(endIndex, total)} de ${total} registros`;
+
+            document.getElementById('prev-btn').disabled = CURRENT_PAGE === 1;
+            document.getElementById('next-btn').disabled = endIndex >= total;
+        }
+
+        function updateStats(filteredMessages, sessions = []) {
+            const countSessions = sessions.length || [...new Set(filteredMessages.map(m => m.chatId))].length;
+            const criticalCount = sessions.length ? sessions.filter(s => s.is_waiting).length : '---';
+
+            document.getElementById('count-sessions').textContent = countSessions;
+            document.getElementById('count-messages').textContent = filteredMessages.length;
+            document.getElementById('avg-score').textContent = (filteredMessages.length / (countSessions || 1)).toFixed(1);
+            document.getElementById('count-critical').textContent = criticalCount;
+        }
+
+        function renderTimeline(messages) {
+            const thead = document.querySelector('thead tr');
+            thead.innerHTML = `
+                <th>Horário</th>
+                <th>Responsável</th>
+                <th>Mensagem</th>
+                <th>Tipo</th>
+                <th>Status</th>
+                <th>Ações</th>
+            `;
+
             const tableBody = document.getElementById('table-body');
             tableBody.innerHTML = '';
 
-            let criticalCount = 0;
+            messages.forEach(msg => {
+                const row = document.createElement('tr');
+                const time = new Date(msg.dateTime).toLocaleTimeString('pt-BR');
+                const label = msg.isEcho ? '<span style="color:var(--primary)">Oeste</span>' : '<span style="color:var(--accent-green)">Cliente</span>';
+
+                row.innerHTML = `
+                    <td>${time}</td>
+                    <td><b>${msg.authorName || 'Desconhecido'}</b><br><small>${msg.chatId}</small></td>
+                    <td><div style="max-width:400px; font-size:0.9rem">${msg.text || '<i>Mídia</i>'}</div></td>
+                    <td><span class="tag">${msg.type}</span></td>
+                    <td>${msg.isEcho ? '✅ Enviada' : '📥 Recebida'}</td>
+                    <td><button class="refresh-btn" style="font-size:0.7rem" onclick="console.log(${JSON.stringify(msg)})">RAW</button></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function renderSessions(sessions) {
+            const thead = document.querySelector('thead tr');
+            thead.innerHTML = `
+                <th>Cliente</th>
+                <th>Atendente</th>
+                <th>Última Mensagem</th>
+                <th>Status</th>
+                <th>Msgs</th>
+                <th>Ações</th>
+            `;
+
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = '';
 
             sessions.forEach(session => {
                 const row = document.createElement('tr');
-
-                const initials = session.customer_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                 const timeStr = new Date(session.last_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 const dateStr = new Date(session.last_time).toLocaleDateString('pt-BR');
-
-                if (session.is_waiting) criticalCount++;
-
                 const statusTag = session.is_waiting ? 'tag-sentiment-negativo' : 'tag-sentiment-positivo';
                 const statusText = session.is_waiting ? 'Aguardando' : 'Respondido';
+                const initials = session.customer_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
                 row.innerHTML = `
                     <td>
@@ -507,32 +670,19 @@
                             </div>
                         </div>
                     </td>
+                    <td><div style="font-weight:600; color:var(--primary)">${session.last_agent}</div></td>
                     <td>
-                        <div style="font-weight:600; color:var(--primary)">${session.last_agent}</div>
-                        <div style="font-size:0.75rem; color:var(--text-muted)">Última resp.</div>
-                    </td>
-                    <td>
-                        <div style="font-size:0.85rem; max-width: 350px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${session.last_message}">
-                            ${session.last_message || '<i>Mensagem de mídia</i>'}
+                        <div style="font-size:0.85rem; max-width: 350px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${session.last_message}
                         </div>
                         <div style="font-size:0.7rem; color:var(--text-muted)">${dateStr} às ${timeStr}</div>
                     </td>
                     <td><span class="tag ${statusTag}">${statusText}</span></td>
                     <td><div class="score-badge">${session.total_msgs}</div></td>
-                    <td>
-                        <button class="refresh-btn" style="padding: 5px 10px; font-size: 0.8rem; background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1)" 
-                                onclick="showHistory('${session.chatId}')">
-                            Histórico
-                        </button>
-                    </td>
+                    <td><button class="refresh-btn" style="padding: 5px 10px; font-size: 0.8rem;" onclick="showHistory('${session.chatId}')">Histórico</button></td>
                 `;
                 tableBody.appendChild(row);
             });
-
-            document.getElementById('count-sessions').textContent = sessions.length;
-            document.getElementById('count-messages').textContent = RAW_MESSAGES.length;
-            document.getElementById('avg-score').textContent = (RAW_MESSAGES.length / (sessions.length || 1)).toFixed(1);
-            document.getElementById('count-critical').textContent = criticalCount;
         }
 
         function showHistory(chatId) {
