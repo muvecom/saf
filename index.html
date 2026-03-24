@@ -54,9 +54,12 @@
         }
 
         .logo-container img {
-            height: 45px;
-            filter: brightness(1.2) drop-shadow(0 0 10px rgba(255,255,255,0.2));
-            transition: transform 0.3s ease;
+            height: 50px;
+            filter: brightness(1.5) drop-shadow(0 0 15px rgba(255, 255, 255, 0.8));
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            padding: 5px;
+            border-radius: 50%;
+            transition: all 0.3s ease;
         }
 
         .logo-container img:hover {
@@ -300,7 +303,7 @@
             <img src="https://saf.com.br/wp-content/uploads/2025/12/gruposaf-300x212.png" alt="Logo Grupo SAF">
             <div class="logo-text">
                 <h1>Painel SAF</h1>
-                <p>Monitoramento de Atendimento: Wazzup em Tempo Real</p>
+                <p>Monitoramento de Atendimento: em Tempo Real</p>
             </div>
         </div>
         <div style="display:flex; gap:1rem">
@@ -378,11 +381,11 @@
 
                 entries.forEach(entry => {
                     const source = entry.body || entry;
-                    
+
                     // Extrai mensagens da Wazzup (formato esperado body.messages[])
                     if (source.messages && Array.isArray(source.messages)) {
                         allMessages = [...allMessages, ...source.messages];
-                    } 
+                    }
                     // Fallback para mensagens soltas
                     else if (source.chatId && source.text) {
                         allMessages.push(source);
@@ -419,7 +422,7 @@
 
         function applyFilters() {
             const agentFilter = document.getElementById('filter-agent').value;
-            
+
             // AGRUPAMENTO EM SESSÕES (Agrupar por chatId)
             const sessionsMap = {};
 
@@ -447,7 +450,7 @@
                     sessionsMap[id].last_time = msg.dateTime;
                     sessionsMap[id].last_message = msg.text;
                     sessionsMap[id].is_waiting = !msg.isEcho; // Se a última não é echo, estamos esperando o humano
-                    
+
                     if (msg.isEcho && msg.authorName) {
                         sessionsMap[id].last_agent = msg.authorName;
                     }
@@ -475,11 +478,11 @@
 
             sessions.forEach(session => {
                 const row = document.createElement('tr');
-                
+
                 const initials = session.customer_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
                 const timeStr = new Date(session.last_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 const dateStr = new Date(session.last_time).toLocaleDateString('pt-BR');
-                
+
                 if (session.is_waiting) criticalCount++;
 
                 const statusTag = session.is_waiting ? 'tag-sentiment-negativo' : 'tag-sentiment-positivo';
@@ -526,8 +529,8 @@
         function showHistory(chatId) {
             const chat = RAW_MESSAGES
                 .filter(m => m.chatId === chatId)
-                .sort((a,b) => new Date(a.dateTime) - new Date(b.dateTime));
-            
+                .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+
             console.log(`--- HISTÓRICO DA CONVERSA: ${chatId} ---`);
             chat.forEach(m => {
                 const label = m.isEcho ? `[${m.authorName || 'Atendente'}]` : `[Cliente]`;
