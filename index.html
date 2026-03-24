@@ -4,21 +4,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor IA - Atendimento Humano (SAF)</title>
+    <title>Monitor IA - Atendimento (SAF)</title>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=swap"
         rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --primary: #6366f1;
+            --primary: #38bdf8;
             --secondary: #ec4899;
             --bg-dark: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-bg: #1e293b;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
-            --accent-green: #10b981;
+            --accent-green: #22c55e;
             --accent-red: #ef4444;
-            --accent-yellow: #f59e0b;
+            --accent-yellow: #eab308;
         }
 
         * {
@@ -334,6 +335,35 @@
             transform: scale(1.02);
             box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
         }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .chart-card h3 {
+            align-self: flex-start;
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
     </style>
 </head>
 
@@ -348,11 +378,11 @@
             </div>
         </div>
         <div style="display:flex; gap:0.5rem; align-items:center">
-            <span style="font-size:0.8rem; color:var(--text-muted)">Dia:</span>
+            <span style="font-size:0.8rem; color:var(--text-muted)">Dia Inicial:</span>
             <input type="date" id="filter-date" onchange="applyFilters()"
                 style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
 
-            <span style="font-size:0.8rem; color:var(--text-muted)">Hora Final:</span>
+            <span style="font-size:0.8rem; color:var(--text-muted)">A partir de:</span>
             <input type="time" id="filter-time" onchange="applyFilters()"
                 style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
 
@@ -390,8 +420,19 @@
             <div class="stat-value" id="avg-score">0.0</div>
         </div>
         <div id="card-critical" class="stat-card" onclick="setQuickFilter('critical')">
-            <div class="stat-label">Aguardando (Críticos)</div>
+            <div class="stat-label">Aguardando Resposta</div>
             <div class="stat-value" id="count-critical" style="color: var(--accent-red)">0</div>
+        </div>
+    </div>
+
+    <div class="charts-container">
+        <div class="chart-card">
+            <h3>Distribuição de Status</h3>
+            <canvas id="pieChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Frequência de Atividade (Hoje)</h3>
+            <canvas id="lineChart"></canvas>
         </div>
     </div>
 
@@ -435,9 +476,12 @@
         const WEBHOOK_URL = 'https://api.muvecom.com.br/v1/a4e5db67-6733-4e37-b4ba-6a02ac23baf3';
         const PAGE_SIZE = 100;
         let CURRENT_PAGE = 1;
-        let FILTERED_DATA = []; // Armazena o lote atual filtrado para paginação
+        let FILTERED_DATA = [];
         let RAW_MESSAGES = [];
         let CURRENT_QUICK_FILTER = 'all';
+
+        let pieChartInstance = null;
+        let lineChartInstance = null;
 
         function changePage(direction) {
             CURRENT_PAGE += direction;
@@ -554,6 +598,7 @@
                 }
                 FILTERED_DATA = timelineItems;
                 updateStats(filteredMessages);
+                updateCharts(filteredMessages, []);
             }
             // 3. Lógica para Sessões (Agregado)
             else {
@@ -569,7 +614,8 @@
                             last_time: null,
                             last_agent: 'Sistema',
                             is_waiting: false,
-                            total_msgs: 0
+                            total_msgs: 0,
+                            quality_score: 100 // Inicia perfeito
                         };
                     }
                     sessionsMap[id].messages.push(msg);
@@ -584,13 +630,26 @@
                     }
                 });
 
-                let sessions = Object.values(sessionsMap);
+                let sessions = Object.values(sessionsMap).map(s => {
+                    // Cálculo de Qualidade Heurístico
+                    let score = 100;
+                    if (s.is_waiting) {
+                        const minsWait = (new Date() - new Date(s.last_time)) / (1000 * 60);
+                        if (minsWait > 30) score -= 40;
+                        else if (minsWait > 10) score -= 20;
+                    }
+                    if (s.total_msgs < 2) score -= 10;
+                    s.quality_score = Math.max(0, score);
+                    return s;
+                });
+
                 if (agentFilter !== 'all') sessions = sessions.filter(s => s.last_agent === agentFilter);
                 if (CURRENT_QUICK_FILTER === 'critical') sessions = sessions.filter(s => s.is_waiting);
 
                 sessions.sort((a, b) => new Date(b.last_time) - new Date(a.last_time));
                 FILTERED_DATA = sessions;
                 updateStats(filteredMessages, sessions);
+                updateCharts(filteredMessages, sessions);
             }
 
             renderPaginatedView();
@@ -676,6 +735,7 @@
                 const statusTag = session.is_waiting ? 'tag-sentiment-negativo' : 'tag-sentiment-positivo';
                 const statusText = session.is_waiting ? 'Aguardando' : 'Respondido';
                 const initials = session.customer_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                const sColor = getScoreColor(session.quality_score);
 
                 row.innerHTML = `
                     <td>
@@ -695,11 +755,17 @@
                         <div style="font-size:0.7rem; color:var(--text-muted)">${dateStr} às ${timeStr}</div>
                     </td>
                     <td><span class="tag ${statusTag}">${statusText}</span></td>
-                    <td><div class="score-badge">${session.total_msgs}</div></td>
+                    <td><div class="score-badge" style="background: ${sColor}">${session.quality_score}%</div></td>
                     <td><button class="refresh-btn" style="padding: 5px 10px; font-size: 0.8rem;" onclick="showHistory('${session.chatId}')">Histórico</button></td>
                 `;
                 tableBody.appendChild(row);
             });
+        }
+        
+        function getScoreColor(score) {
+            if (score >= 80) return 'var(--accent-green)';
+            if (score >= 50) return 'var(--accent-yellow)';
+            return 'var(--accent-red)';
         }
 
         function showHistory(chatId) {
