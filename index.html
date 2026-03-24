@@ -361,8 +361,92 @@
             margin-bottom: 1rem;
         }
 
-        canvas {
-            max-width: 100%;
+        /* Estilos do Modal de Histórico */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--bg-dark);
+            width: 90%;
+            max-width: 600px;
+            height: 80vh;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            background: var(--card-bg);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+            background-size: 20px 20px;
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 0.8rem 1.2rem;
+            border-radius: 18px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            position: relative;
+        }
+
+        .message-bubble.client {
+            background: #334155;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            color: #f1f5f9;
+        }
+
+        .message-bubble.agent {
+            background: var(--primary);
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+            color: #0f172a;
+        }
+
+        .bubble-time {
+            font-size: 0.7rem;
+            margin-top: 0.4rem;
+            opacity: 0.7;
+            display: block;
+            text-align: right;
+        }
+
+        .close-modal {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 50%;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -467,6 +551,22 @@
             style="display: none; justify-content: center; align-items: center; flex-direction: column; gap: 1rem; margin-top: 5rem;">
             <div class="spinner"></div>
             <p>Buscando dados...</p>
+        </div>
+    </div>
+
+    <!-- Modal de Histórico -->
+    <div id="modal-history" class="modal-overlay" onclick="closeHistory(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modal-title" style="margin:0; font-family:'Outfit'">Histórico de Conversa</h2>
+                    <p id="modal-subtitle" style="margin:0; font-size:0.8rem; color:var(--text-muted)"></p>
+                </div>
+                <button class="close-modal" onclick="closeHistory()">✕</button>
+            </div>
+            <div id="chat-container" class="chat-body">
+                <!-- Bolhas de chat aqui -->
+            </div>
         </div>
     </div>
 
@@ -746,11 +846,11 @@
 
                 row.innerHTML = `
                     <td>${time}</td>
-                    <td><b>${msg.authorName || 'Desconhecido'}</b><br><small>${msg.chatId}</small></td>
+                    <td><b>${msg.authorName || 'Oeste'}</b><br><small>${msg.chatId}</small></td>
                     <td><div style="max-width:400px; font-size:0.9rem">${msg.text || '<i>Mídia</i>'}</div></td>
                     <td><span class="tag">${msg.type}</span></td>
                     <td>${msg.isEcho ? '✅ Enviada' : '📥 Recebida'}</td>
-                    <td><button class="refresh-btn" style="font-size:0.7rem" onclick="console.log(${JSON.stringify(msg)})">RAW</button></td>
+                    <td><button class="refresh-btn" style="font-size:0.7rem" onclick="showHistory('${msg.chatId}')">HISTÓRICO</button></td>
                 `;
                 tableBody.appendChild(row);
             });
@@ -815,12 +915,37 @@
                 .filter(m => m.chatId === chatId)
                 .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
 
-            console.log(`--- HISTÓRICO DA CONVERSA: ${chatId} ---`);
+            const modal = document.getElementById('modal-history');
+            const container = document.getElementById('chat-container');
+            const title = document.getElementById('modal-title');
+            const subtitle = document.getElementById('modal-subtitle');
+
+            const customerName = chat.find(m => !m.isEcho)?.contact?.name || 'Cliente';
+            title.textContent = customerName;
+            subtitle.textContent = `Chat ID: ${chatId} • ${chat.length} mensagens`;
+            
+            container.innerHTML = '';
+            
             chat.forEach(m => {
-                const label = m.isEcho ? `[${m.authorName || 'Atendente'}]` : `[Cliente]`;
-                console.log(`${new Date(m.dateTime).toLocaleString()} ${label}: ${m.text}`);
+                const bubble = document.createElement('div');
+                bubble.className = `message-bubble ${m.isEcho ? 'agent' : 'client'}`;
+                
+                const time = new Date(m.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const author = m.isEcho ? `<b>${m.authorName || 'Oeste'}</b><br>` : '';
+                
+                bubble.innerHTML = `
+                    ${author}${m.text || '<i>[Mídia/Arquivo]</i>'}
+                    <span class="bubble-time">${time}</span>
+                `;
+                container.appendChild(bubble);
             });
-            alert(`Histórico impresso no Console (F12) para análise detalhada.\nTotal de mensagens: ${chat.length}`);
+
+            modal.style.display = 'flex';
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function closeHistory() {
+            document.getElementById('modal-history').style.display = 'none';
         }
 
         fetchData();
