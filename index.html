@@ -377,14 +377,26 @@
                 const entries = Array.isArray(json) ? json : [json];
 
                 entries.forEach(entry => {
+                    // Tenta encontrar a fonte verdadeira (pode estar em body ou na raiz)
                     const source = entry.body || entry;
-
-                    // Extrai mensagens da Wazzup (formato esperado body.messages[])
-                    if (source.messages && Array.isArray(source.messages)) {
-                        allMessages = [...allMessages, ...source.messages];
+                    
+                    // 1. Caso: Array dentro de data[] (seu formato novo)
+                    if (source.data && Array.isArray(source.data)) {
+                        source.data.forEach(item => {
+                            if (item.message) allMessages.push(item.message);
+                            else if (item.chatId) allMessages.push(item); // Assuming item itself is the message if it has chatId
+                        });
                     }
-                    // Fallback para mensagens soltas
-                    else if (source.chatId && source.text) {
+                    // 2. Caso: Array dentro de messages[] (formato n8n padrão)
+                    else if (source.messages && Array.isArray(source.messages)) {
+                        allMessages = [...allMessages, ...source.messages];
+                    } 
+                    // 3. Caso: Objeto único que contém a chave .message
+                    else if (source.message && typeof source.message === 'object') {
+                        allMessages.push(source.message);
+                    }
+                    // 4. Caso: Objeto plano (já extraído ou formato simples)
+                    else if (source.chatId && (source.text || source.type)) {
                         allMessages.push(source);
                     }
                 });
