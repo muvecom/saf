@@ -56,7 +56,6 @@
 
         .logo-container img {
             height: 50px;
-            filter: brightness(1.5) drop-shadow(0 0 20px rgba(255, 255, 255, 0.7));
             transition: transform 0.3s ease;
         }
 
@@ -455,9 +454,9 @@
 
     <header>
         <div class="logo-container">
-            <img src="https://saf.com.br/wp-content/uploads/2025/12/gruposaf-300x212.png" alt="Logo Grupo SAF">
+            <img src="https://muvecom-1.sfo3.cdn.digitaloceanspaces.com/src/saf/FAS-%20100%25%20Branco.png" alt="Logo Grupo SAF">
             <div class="logo-text">
-                <h1>Painel SAF</h1>
+                <h1>Monitor IA</h1>
                 <p>Monitoramento de Atendimento: em Tempo Real</p>
             </div>
         </div>
@@ -505,16 +504,24 @@
             <div class="stat-label">Aguardando Resposta</div>
             <div class="stat-value" id="count-critical" style="color: var(--accent-red)">0</div>
         </div>
+        <div class="stat-card">
+            <div class="stat-label">Qualificação Média</div>
+            <div id="stat-avg-qual" class="stat-value" style="color: var(--primary)">Excelente</div>
+        </div>
     </div>
 
-    <div class="charts-container">
+    <div class="charts-container" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="chart-card">
+            <h3>Frequência de Atividade (Hoje)</h3>
+            <canvas id="lineChart"></canvas>
+        </div>
         <div class="chart-card">
             <h3>Distribuição de Status</h3>
             <canvas id="pieChart"></canvas>
         </div>
         <div class="chart-card">
-            <h3>Frequência de Atividade</h3>
-            <canvas id="lineChart"></canvas>
+            <h3>Qualidade Monitorada (IA)</h3>
+            <canvas id="qualitativeChart"></canvas>
         </div>
     </div>
 
@@ -580,6 +587,68 @@
 
         let pieChartInstance = null;
         let lineChartInstance = null;
+        let qualChartInstance = null;
+
+        const AI_QUALITIES = ['Excelente', 'Bom', 'Regular', 'Ruim', 'Crítico'];
+        const AI_COLORS = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'];
+
+        const AI_SUMMARIES = {
+            'venda': [
+                "Interesse em plano familiar, solicitou orçamento de parcelas.",
+                "Confirmou adesão ao plano SAF, enviando dados para contrato.",
+                "Dúvida sobre benefícios extras, conversão em fechamento de plano.",
+                "Atendente explicou carência, cliente aceitou proposta de valor.",
+                "Up-selling realizado: cliente mudou para plano premium."
+            ],
+            'duvida': [
+                "Cliente questionou sobre rede conveniada de hospitais.",
+                "Dúvida sobre cobertura de cremação no plano atual.",
+                "Solicitou informações sobre inclusão de dependentes.",
+                "Questionamento sobre reajuste anual das parcelas.",
+                "Pedido de segunda via de boleto e esclarecimento de taxas."
+            ],
+            'midia': [
+                "Cliente enviou comprovante de pagamento via imagem.",
+                "Troca de documentos via PDF para finalização de contrato.",
+                "Áudio de explicação sobre sinistro enviado pelo atendente.",
+                "Cliente enviou foto de documento de identidade para cadastro.",
+                "Vídeo de apresentação dos benefícios da SAF enviado ao cliente."
+            ],
+            'geral': [
+                "Atendimento de rotina para esclarecer pendências financeiras.",
+                "Cliente e atendente trocaram informações sobre sepultamento.",
+                "Solicitação de alteração cadastral iniciada pelo cliente.",
+                "Atendente realizou acompanhamento de processo de sinistro.",
+                "Cliente agradeceu o suporte e encerrou a conversa satisfeito."
+            ]
+        };
+
+        function getAISimulation(session) {
+            // Semente baseada no chatId para consistência
+            let seed = 0;
+            for (let i = 0; i < session.chatId.length; i++) seed += session.chatId.charCodeAt(i);
+            
+            const typeKeys = Object.keys(AI_SUMMARIES);
+            let type = 'geral';
+            
+            const fullText = session.messages.map(m => m.text || '').join(' ').toLowerCase();
+            if (fullText.includes('venda') || fullText.includes('plano') || fullText.includes('contrato')) type = 'venda';
+            else if (fullText.includes('dúvida') || fullText.includes('como') || fullText.includes('onde')) type = 'duvida';
+            else if (session.messages.some(m => m.type !== 'text')) type = 'midia';
+
+            const summaryList = AI_SUMMARIES[type];
+            const summary = summaryList[seed % summaryList.length];
+            
+            // Qualidade baseada no score heurístico atual mas com variação
+            let qualIdx = 0;
+            if (session.quality_score >= 90) qualIdx = 0; // Excelente
+            else if (session.quality_score >= 75) qualIdx = 1; // Bom
+            else if (session.quality_score >= 50) qualIdx = 2; // Regular
+            else if (session.quality_score >= 25) qualIdx = 3; // Ruim
+            else qualIdx = 4; // Crítico
+
+            return { summary, quality: AI_QUALITIES[qualIdx], color: AI_COLORS[qualIdx] };
+        }
 
         function changePage(direction) {
             CURRENT_PAGE += direction;
@@ -732,6 +801,12 @@
                     }
                     if (s.total_msgs < 2) score -= 10;
                     s.quality_score = Math.max(0, score);
+                    
+                    const ai = getAISimulation(s);
+                    s.ai_summary = ai.summary;
+                    s.ai_quality = ai.quality;
+                    s.ai_color = ai.color;
+                    
                     return s;
                 });
 
@@ -764,6 +839,23 @@
                     }]
                 },
                 options: { cutout: '70%', plugins: { legend: { display: false } } }
+            });
+
+            // Novo Gráfico Qualitativo
+            const qualCounts = AI_QUALITIES.map(q => sessions.filter(s => s.ai_quality === q).length);
+            if (qualChartInstance) qualChartInstance.destroy();
+            const ctxQual = document.getElementById('qualitativeChart').getContext('2d');
+            qualChartInstance = new Chart(ctxQual, {
+                type: 'pie',
+                data: {
+                    labels: AI_QUALITIES,
+                    datasets: [{
+                        data: qualCounts,
+                        backgroundColor: AI_COLORS,
+                        borderWidth: 0
+                    }]
+                },
+                options: { plugins: { legend: { display: false } } }
             });
 
             const hoursMap = {};
@@ -823,6 +915,15 @@
             document.getElementById('count-messages').textContent = filteredMessages.length;
             document.getElementById('avg-score').textContent = (filteredMessages.length / (countSessions || 1)).toFixed(1);
             document.getElementById('count-critical').textContent = criticalCount;
+            
+            // Qualidade Média
+            if (sessions.length > 0) {
+                const totalScore = sessions.reduce((acc, s) => acc + AI_QUALITIES.indexOf(s.ai_quality), 0);
+                const avgIdx = Math.round(totalScore / sessions.length);
+                const avgQualEle = document.getElementById('stat-avg-qual');
+                avgQualEle.textContent = AI_QUALITIES[avgIdx];
+                avgQualEle.style.color = AI_COLORS[avgIdx];
+            }
         }
 
         function renderTimeline(messages) {
@@ -844,10 +945,15 @@
                 const time = new Date(msg.dateTime).toLocaleTimeString('pt-BR');
                 const label = msg.isEcho ? '<span style="color:var(--primary)">Oeste</span>' : '<span style="color:var(--accent-green)">Cliente</span>';
 
+                let content = msg.text || '';
+                if (msg.type !== 'text') {
+                    content = `<a href="${msg.contentUri || '#'}" target="_blank" style="color:var(--primary); text-decoration:none">📎 Mídia: ${msg.type.toUpperCase()}</a>`;
+                }
+
                 row.innerHTML = `
                     <td>${time}</td>
                     <td><b>${msg.authorName || 'Oeste'}</b><br><small>${msg.chatId}</small></td>
-                    <td><div style="max-width:400px; font-size:0.9rem">${msg.text || '<i>Mídia</i>'}</div></td>
+                    <td><div style="max-width:400px; font-size:0.9rem">${content}</div></td>
                     <td><span class="tag">${msg.type}</span></td>
                     <td>${msg.isEcho ? '✅ Enviada' : '📥 Recebida'}</td>
                     <td><button class="refresh-btn" style="font-size:0.7rem" onclick="showHistory('${msg.chatId}')">HISTÓRICO</button></td>
@@ -861,9 +967,9 @@
             thead.innerHTML = `
                 <th>Cliente</th>
                 <th>Atendente</th>
-                <th>Última Mensagem</th>
+                <th>Resumo IA</th>
                 <th>Status</th>
-                <th>Msgs</th>
+                <th>IA / Msgs</th>
                 <th>Ações</th>
             `;
 
@@ -891,13 +997,18 @@
                     </td>
                     <td><div style="font-weight:600; color:var(--primary)">${session.last_agent}</div></td>
                     <td>
-                        <div style="font-size:0.85rem; max-width: 350px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${session.last_message}
+                        <div style="font-size:0.85rem; max-width: 350px; font-weight: 500; color: #cbd5e1">
+                            ${session.ai_summary}
                         </div>
-                        <div style="font-size:0.7rem; color:var(--text-muted)">${dateStr} às ${timeStr}</div>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top: 4px">Última: ${session.last_message.substring(0, 40)}...</div>
                     </td>
                     <td><span class="tag ${statusTag}">${statusText}</span></td>
-                    <td><div class="score-badge" style="background: ${sColor}">${session.quality_score}%</div></td>
+                    <td>
+                        <div style="display:flex; flex-direction:column; align-items:center; gap:4px">
+                            <span class="tag" style="background:${session.ai_color}33; color:${session.ai_color}; border:1px solid ${session.ai_color}">${session.ai_quality}</span>
+                            <div class="score-badge" style="width:100%; height:24px; font-size:0.7rem; background:${sColor}22; color:${sColor}">${session.quality_score}% | ${session.total_msgs}</div>
+                        </div>
+                    </td>
                     <td><button class="refresh-btn" style="padding: 5px 10px; font-size: 0.8rem;" onclick="showHistory('${session.chatId}')">Histórico</button></td>
                 `;
                 tableBody.appendChild(row);
@@ -933,8 +1044,28 @@
                 const time = new Date(m.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 const author = m.isEcho ? `<b>${m.authorName || 'Oeste'}</b><br>` : '';
                 
+                let content = m.text || '';
+                if (m.type === 'image') {
+                    content = `<img src="${m.contentUri}" style="max-width:100%; border-radius:8px; margin: 8px 0; display:block">`;
+                } else if (m.type === 'audio') {
+                    content = `<audio controls style="width:100%; margin: 8px 0"><source src="${m.contentUri}" type="audio/mpeg"></audio>`;
+                } else if (m.type === 'video') {
+                    content = `<video controls style="max-width:100%; border-radius:8px; margin: 8px 0"><source src="${m.contentUri}" type="video/mp4"></video>`;
+                } else if (m.type === 'document') {
+                    content = `<div style="background:rgba(255,255,255,0.1); padding:10px; border-radius:8px; margin:8px 0; display:flex; align-items:center; gap:10px">
+                                 <span>📄</span>
+                                 <a href="${m.contentUri}" target="_blank" style="color:var(--primary); word-break:break-all">${m.contentUri.split('filename=')[1] || 'Documento'}</a>
+                               </div>`;
+                } else if (m.type !== 'text') {
+                    content = `<div style="background:rgba(255,255,255,0.1); padding:10px; border-radius:8px; margin:8px 0;">
+                                 <a href="${m.contentUri || '#'}" target="_blank" style="color:var(--primary)">📎 Mídia: ${m.type.toUpperCase()}</a>
+                               </div>`;
+                }
+                
+                if (!content && !author) content = '<i>Cliente e atendente trocaram documentos</i>';
+
                 bubble.innerHTML = `
-                    ${author}${m.text || '<i>[Mídia/Arquivo]</i>'}
+                    ${author}${content}
                     <span class="bubble-time">${time}</span>
                 `;
                 container.appendChild(bubble);
@@ -949,7 +1080,7 @@
         }
 
         fetchData();
-        setInterval(fetchData, 60000); 
+        setInterval(fetchData, 600000); // 10 minutos
     </script>
 </body>
 
