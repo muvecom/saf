@@ -499,6 +499,7 @@
         <div class="stat-card">
             <div class="stat-label">Média Msgs/Sessao</div>
             <div class="stat-value" id="avg-score">0.0</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">Total de Msgs / Total de Conversas</div>
         </div>
         <div id="card-critical" class="stat-card" onclick="setQuickFilter('critical')">
             <div class="stat-label">Aguardando Resposta</div>
@@ -605,58 +606,91 @@
 
         const AI_SUMMARIES = {
             'venda': [
-                "Interesse em plano familiar, solicitou orçamento de parcelas.",
-                "Confirmou adesão ao plano SAF, enviando dados para contrato.",
-                "Dúvida sobre benefícios extras, conversão em fechamento de plano.",
-                "Atendente explicou carência, cliente aceitou proposta de valor.",
-                "Up-selling realizado: cliente mudou para plano premium."
+                "Interesse em novo plano familiar, solicitou detalhes de valores.",
+                "Processo de adesão iniciado, cliente enviando dados para contrato.",
+                "Consulta sobre inclusão de dependentes e carências do plano.",
+                "Upgrade de plano solicitado para cobertura premium.",
+                "Interesse em serviços adicionais e assistência 24h."
             ],
-            'duvida': [
-                "Cliente questionou sobre rede conveniada de hospitais.",
-                "Dúvida sobre cobertura de cremação no plano atual.",
-                "Solicitou informações sobre inclusão de dependentes.",
-                "Questionamento sobre reajuste anual das parcelas.",
-                "Pedido de segunda via de boleto e esclarecimento de taxas."
+            'financeiro': [
+                "Solicitação de segunda via de boleto ou linha digitável.",
+                "Dúvida sobre parcelas em aberto e formas de quitação (PIX/Cartão).",
+                "Negociação de débitos atrasados e confirmação de vencimento.",
+                "Cliente questionou valor da mensalidade ou reajuste anual.",
+                "Tratativa sobre erro em boleto ou atualização de dados de cobrança."
+            ],
+            'sinistro': [
+                "Comunicação de falecimento e início de protocolo de assistência.",
+                "Dúvida sobre liberação de sepultamento e documentação necessária.",
+                "Solicitação de informações sobre cobertura funeral e traslados.",
+                "Acompanhamento de processo de óbito e escolha de serviços.",
+                "Orientações sobre procedimentos burocráticos pós-falecimento."
+            ],
+            'suporte': [
+                "Busca por endereço de unidade física ou horário de funcionamento.",
+                "Dúvida geral sobre rede conveniada e benefícios em vida.",
+                "Solicitação de troca de titularidade ou alteração cadastral.",
+                "Feedback sobre atendimento anterior ou reclamação de serviço.",
+                "Pedido de informações sobre renovação automática de contrato."
             ],
             'midia': [
-                "Cliente enviou comprovante de pagamento via imagem.",
-                "Troca de documentos via PDF para finalização de contrato.",
-                "Áudio de explicação sobre sinistro enviado pelo atendente.",
-                "Cliente enviou foto de documento de identidade para cadastro.",
-                "Vídeo de apresentação dos benefícios da SAF enviado ao cliente."
+                "Envio de comprovante de pagamento via imagem/PDF.",
+                "Troca de documentos pessoais para atualização cadastral.",
+                "Áudio explicativo enviado pelo atendente sobre procedimentos.",
+                "Vídeo institucional ou manual de uso enviado ao cliente.",
+                "Cliente e atendente trocaram arquivos digitais (PDF/Docs)."
             ],
             'geral': [
-                "Atendimento de rotina para esclarecer pendências financeiras.",
-                "Cliente e atendente trocaram informações sobre sepultamento.",
-                "Solicitação de alteração cadastral iniciada pelo cliente.",
-                "Atendente realizou acompanhamento de processo de sinistro.",
-                "Cliente agradeceu o suporte e encerrou a conversa satisfeito."
+                "Atendimento de rotina para esclarecer dúvidas básicas.",
+                "Início de conversa com saudação, aguardando interação.",
+                "Tratativa padrão sem categoria crítica identificada.",
+                "Acompanhamento de solicitação prévia do cliente.",
+                "Encerramento de ciclo de atendimento com satisfação."
             ]
         };
 
         function getAISimulation(session) {
-            // Semente baseada no chatId para consistência
             let seed = 0;
             for (let i = 0; i < session.chatId.length; i++) seed += session.chatId.charCodeAt(i);
             
-            const typeKeys = Object.keys(AI_SUMMARIES);
+            const fullText = session.messages.map(m => m.text || '').join(' ').toLowerCase();
+            const hasMedia = session.messages.some(m => m.type !== 'text');
+            
             let type = 'geral';
             
-            const fullText = session.messages.map(m => m.text || '').join(' ').toLowerCase();
-            if (fullText.includes('venda') || fullText.includes('plano') || fullText.includes('contrato')) type = 'venda';
-            else if (fullText.includes('dúvida') || fullText.includes('como') || fullText.includes('onde')) type = 'duvida';
-            else if (session.messages.some(m => m.type !== 'text')) type = 'midia';
+            // Priorização por palavras-chave reais
+            if (fullText.includes('óbito') || fullText.includes('falec') || fullText.includes('morreu') || fullText.includes('funeral') || fullText.includes('sepultamento')) {
+                type = 'sinistro';
+            } else if (fullText.includes('boleto') || fullText.includes('pagar') || fullText.includes('cobrança') || fullText.includes('pix') || fullText.includes('vencimento') || fullText.includes('cpf') || fullText.includes('valor')) {
+                type = 'financeiro';
+            } else if (fullText.includes('adesão') || fullText.includes('plano') || fullText.includes('contrato') || fullText.includes('venda') || fullText.includes('valor do plano')) {
+                type = 'venda';
+            } else if (fullText.includes('onde') || fullText.includes('unidade') || fullText.includes('endereço') || fullText.includes('telefone') || fullText.includes('ajuda')) {
+                type = 'suporte';
+            } else if (hasMedia) {
+                type = 'midia';
+            }
 
             const summaryList = AI_SUMMARIES[type];
             const summary = summaryList[seed % summaryList.length];
             
-            // Qualidade baseada no score heurístico atual mas com variação
-            let qualIdx = 0;
-            if (session.quality_score >= 90) qualIdx = 0; // Excelente
-            else if (session.quality_score >= 75) qualIdx = 1; // Bom
-            else if (session.quality_score >= 50) qualIdx = 2; // Regular
-            else if (session.quality_score >= 25) qualIdx = 3; // Ruim
-            else qualIdx = 4; // Crítico
+            // Qualidade baseada em critérios mais rígidos
+            let qualIdx = 1; // Bom por padrão
+            
+            const responseTimes = [];
+            for(let i=1; i<session.messages.length; i++) {
+                if (session.messages[i].isEcho && !session.messages[i-1].isEcho) {
+                    const diff = (new Date(session.messages[i].dateTime) - new Date(session.messages[i-1].dateTime)) / 60000;
+                    responseTimes.push(diff);
+                }
+            }
+            const avgWait = responseTimes.length ? responseTimes.reduce((a,b) => a+b, 0) / responseTimes.length : 0;
+
+            if (session.is_waiting && (new Date() - new Date(session.last_time)) / 60000 > 20) qualIdx = 4; // Crítico
+            else if (avgWait > 15) qualIdx = 3; // Ruim
+            else if (avgWait > 5) qualIdx = 2; // Regular
+            else if (avgWait > 0 && avgWait <= 5 && !session.is_waiting) qualIdx = 0; // Excelente
+            else if (session.total_msgs > 8) qualIdx = 0; // Excelente por engajamento
 
             return { summary, quality: AI_QUALITIES[qualIdx], color: AI_COLORS[qualIdx] };
         }
