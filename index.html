@@ -497,7 +497,7 @@
             <div class="stat-value" id="count-messages">0</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Média Mensagens</div>
+            <div class="stat-label">Média Msgs/Sessao</div>
             <div class="stat-value" id="avg-score">0.0</div>
         </div>
         <div id="card-critical" class="stat-card" onclick="setQuickFilter('critical')">
@@ -512,16 +512,18 @@
 
     <div class="charts-container" style="grid-template-columns: repeat(3, 1fr);">
         <div class="chart-card">
-            <h3>Frequência de Atividade (Hoje)</h3>
-            <canvas id="lineChart"></canvas>
-        </div>
-        <div class="chart-card">
-            <h3>Distribuição de Status</h3>
-            <canvas id="pieChart"></canvas>
+            <h3>Distribuição de Mídias</h3>
+            <canvas id="typeChart"></canvas>
         </div>
         <div class="chart-card">
             <h3>Qualidade Monitorada (IA)</h3>
             <canvas id="qualitativeChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Performance dos Atendentes</h3>
+            <div id="performance-insights" style="width: 100%; font-size: 0.8rem; overflow-y: auto; max-height: 200px">
+                <!-- Injetado via JS -->
+            </div>
         </div>
     </div>
 
@@ -588,6 +590,7 @@
         let pieChartInstance = null;
         let lineChartInstance = null;
         let qualChartInstance = null;
+        let typeChartInstance = null;
 
         const AI_QUALITIES = ['Excelente', 'Bom', 'Regular', 'Ruim', 'Crítico'];
         const AI_COLORS = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'];
@@ -699,7 +702,7 @@
                     }
                 });
 
-                RAW_MESSAGES = allMessages;
+                RAW_MESSAGES = allMessages.filter(m => m.authorName !== 'Admin');
                 populateAgentFilter();
                 applyFilters();
             } catch (error) {
@@ -765,6 +768,9 @@
             else {
                 const sessionsMap = {};
                 filteredMessages.forEach(msg => {
+                    // Ignora Admin para métricas operacionais
+                    if (msg.authorName === 'Admin') return;
+
                     const id = msg.chatId || 'Desconhecido';
                     if (!sessionsMap[id]) {
                         sessionsMap[id] = {
@@ -887,6 +893,84 @@
                     scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } }
                 }
             });
+
+            // Distribuição de Tipos de Mensagem
+            const typesMap = {};
+            messages.forEach(m => {
+                typesMap[m.type] = (typesMap[m.type] || 0) + 1;
+            });
+            const typeLabels = Object.keys(typesMap);
+            const typeData = Object.values(typesMap);
+            
+            if (typeChartInstance) typeChartInstance.destroy();
+            const ctxType = document.getElementById('typeChart').getContext('2d');
+            typeChartInstance = new Chart(ctxType, {
+                type: 'bar',
+                data: {
+                    labels: typeLabels,
+                    datasets: [{
+                        data: typeData,
+                        backgroundColor: 'var(--primary)',
+                        borderRadius: 4
+                    }]
+                },
+                options: { 
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: { y: { ticks: { color: '#94a3b8' } }, x: { display: false } }
+                }
+            });
+
+            // Insights de Performance (Nova Visão de Atendentes)
+            renderPerformanceInsights(sessions);
+        }
+
+        function renderPerformanceInsights(sessions) {
+            const agentStats = {};
+            sessions.forEach(s => {
+                const agent = s.last_agent;
+                if (!agentStats[agent]) agentStats[agent] = { total: 0, excellente: 0, delay: 0 };
+                agentStats[agent].total++;
+                if (s.ai_quality === 'Excelente') agentStats[agent].excellente++;
+                if (s.is_waiting) agentStats[agent].delay++;
+            });
+
+            const container = document.getElementById('performance-insights');
+            container.innerHTML = '';
+            
+            const sortedAgents = Object.entries(agentStats).sort((a, b) => b[1].excellente - a[1].excellente);
+            
+            Object.entries(agentStats)
+                .sort((a, b) => b[1].excellente - a[1].excellente)
+                .forEach(([name, stats]) => {
+                    const perc = ((stats.excellente / stats.total) * 100).toFixed(0);
+                    const color = perc > 80 ? 'var(--accent-green)' : (perc > 50 ? 'var(--accent-yellow)' : 'var(--accent-red)');
+                    
+                    let reason = '';
+                    if (perc > 80) reason = '💡 <b>Ponto Positivo:</b> Interação frequente e fechamento de dúvidas rápido.';
+                    else if (perc > 50) reason = '⚠️ <b>Sugestão:</b> Reduzir tempo entre respostas para manter engajamento.';
+                    else reason = '❌ <b>Falha Comum:</b> Poucas mensagens enviadas, deixando o cliente sem resposta.';
+
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '12px';
+                    div.style.padding = '10px';
+                    div.style.background = 'rgba(255,255,255,0.02)';
+                    div.style.borderRadius = '12px';
+                    div.style.borderLeft = `4px solid ${color}`;
+                    div.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px">
+                            <span><b>${name}</b></span>
+                            <span style="color:${color}">${perc}% Eficácia</span>
+                        </div>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:8px">
+                            Concluídos: ${stats.total} | Pendentes: ${stats.delay}
+                        </div>
+                        <div style="font-size:0.75rem; line-height:1.4">
+                            ${reason}
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
         }
 
         function renderPaginatedView() {
