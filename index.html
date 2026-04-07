@@ -5,8 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitor IA - Atendimento (SAF)</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@700;800&display=swap"
         rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -404,7 +403,7 @@
             display: flex;
             flex-direction: column;
             gap: 1rem;
-            background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+            background-image: radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.05) 1px, transparent 0);
             background-size: 20px 20px;
         }
 
@@ -440,7 +439,7 @@
         }
 
         .close-modal {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             border: none;
             color: white;
             padding: 8px 12px;
@@ -454,7 +453,8 @@
 
     <header>
         <div class="logo-container">
-            <img src="https://muvecom-1.sfo3.cdn.digitaloceanspaces.com/src/saf/FAS-%20100%25%20Branco.png" alt="Logo Grupo SAF">
+            <img src="https://muvecom-1.sfo3.cdn.digitaloceanspaces.com/src/saf/FAS-%20100%25%20Branco.png"
+                alt="Logo Grupo SAF">
             <div class="logo-text">
                 <h1>Monitor IA</h1>
                 <p>Monitoramento de Atendimento: em Tempo Real</p>
@@ -499,7 +499,8 @@
         <div class="stat-card">
             <div class="stat-label">Média Msgs/Sessao</div>
             <div class="stat-value" id="avg-score">0.0</div>
-            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">Total de Msgs / Total de Conversas</div>
+            <div style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px;">Total de Msgs / Total de
+                Conversas</div>
         </div>
         <div id="card-critical" class="stat-card" onclick="setQuickFilter('critical')">
             <div class="stat-label">Aguardando Resposta</div>
@@ -521,7 +522,7 @@
             <canvas id="pieChart"></canvas>
         </div>
         <div class="chart-card">
-            <h3>Distribuição de Mídias</h3>
+            <h3>Mapeamento Diário</h3>
             <canvas id="typeChart"></canvas>
         </div>
         <div class="chart-card">
@@ -601,98 +602,71 @@
         let qualChartInstance = null;
         let typeChartInstance = null;
 
-        const AI_QUALITIES = ['Excelente', 'Bom', 'Regular', 'Ruim', 'Crítico'];
-        const AI_COLORS = ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'];
+        const AI_QUALITIES = ['Ótima', 'Boa', 'Ruim', 'Péssima'];
+        const AI_COLORS = ['#fbbf24', '#22c55e', '#f97316', '#ef4444']; // Ouro, Verde, Laranja, Vermelho
 
         const AI_SUMMARIES = {
-            'venda': [
-                "Interesse em novo plano familiar, solicitou detalhes de valores.",
-                "Processo de adesão iniciado, cliente enviando dados para contrato.",
-                "Consulta sobre inclusão de dependentes e carências do plano.",
-                "Upgrade de plano solicitado para cobertura premium.",
-                "Interesse em serviços adicionais e assistência 24h."
+            'objecao': [
+                "Objeção de Preço: Cliente achou a mensalidade cara.",
+                "Objeção de Urgência: Quer deixar para pensar depois ou falar com familiar.",
+                "Objeção de Concorrência: Cliente comparou com outro plano da região.",
+                "Objeção de Pagamento: Problemas com cartão de crédito/limite."
             ],
-            'financeiro': [
-                "Solicitação de segunda via de boleto ou linha digitável.",
-                "Dúvida sobre parcelas em aberto e formas de quitação (PIX/Cartão).",
-                "Negociação de débitos atrasados e confirmação de vencimento.",
-                "Cliente questionou valor da mensalidade ou reajuste anual.",
-                "Tratativa sobre erro em boleto ou atualização de dados de cobrança."
+            'duvida': [
+                "Dúvida Técnica: Cliente questionou sobre prazos de carência.",
+                "Dúvida de Cobertura: Inclusão de dependentes e limites de idade.",
+                "Dúvida Comercial: Formas de pagamento, boletos e parcelamentos.",
+                "Dúvida Assistencial: Acesso aos benefícios em vida e descontos."
             ],
-            'sinistro': [
-                "Comunicação de falecimento e início de protocolo de assistência.",
-                "Dúvida sobre liberação de sepultamento e documentação necessária.",
-                "Solicitação de informações sobre cobertura funeral e traslados.",
-                "Acompanhamento de processo de óbito e escolha de serviços.",
-                "Orientações sobre procedimentos burocráticos pós-falecimento."
-            ],
-            'suporte': [
-                "Busca por endereço de unidade física ou horário de funcionamento.",
-                "Dúvida geral sobre rede conveniada e benefícios em vida.",
-                "Solicitação de troca de titularidade ou alteração cadastral.",
-                "Feedback sobre atendimento anterior ou reclamação de serviço.",
-                "Pedido de informações sobre renovação automática de contrato."
-            ],
-            'midia': [
-                "Envio de comprovante de pagamento via imagem/PDF.",
-                "Troca de documentos pessoais para atualização cadastral.",
-                "Áudio explicativo enviado pelo atendente sobre procedimentos.",
-                "Vídeo institucional ou manual de uso enviado ao cliente.",
-                "Cliente e atendente trocaram arquivos digitais (PDF/Docs)."
-            ],
-            'geral': [
-                "Atendimento de rotina para esclarecer dúvidas básicas.",
-                "Início de conversa com saudação, aguardando interação.",
-                "Tratativa padrão sem categoria crítica identificada.",
-                "Acompanhamento de solicitação prévia do cliente.",
-                "Encerramento de ciclo de atendimento com satisfação."
+            'fluxo': [
+                "Atendimento de rotina: Atualização cadastral ou boletos.",
+                "Fluxo receptivo inicial, sem objeções ou dúvidas profundas identificadas.",
+                "Finalização de procedimentos ou envio de informações básicas."
             ]
         };
 
         function getAISimulation(session) {
             let seed = 0;
             for (let i = 0; i < session.chatId.length; i++) seed += session.chatId.charCodeAt(i);
-            
+
             const fullText = session.messages.map(m => m.text || '').join(' ').toLowerCase();
-            const hasMedia = session.messages.some(m => m.type !== 'text');
-            
-            let type = 'geral';
-            
-            // Priorização por palavras-chave reais
-            if (fullText.includes('óbito') || fullText.includes('falec') || fullText.includes('morreu') || fullText.includes('funeral') || fullText.includes('sepultamento')) {
-                type = 'sinistro';
-            } else if (fullText.includes('boleto') || fullText.includes('pagar') || fullText.includes('cobrança') || fullText.includes('pix') || fullText.includes('vencimento') || fullText.includes('cpf') || fullText.includes('valor')) {
-                type = 'financeiro';
-            } else if (fullText.includes('adesão') || fullText.includes('plano') || fullText.includes('contrato') || fullText.includes('venda') || fullText.includes('valor do plano')) {
-                type = 'venda';
-            } else if (fullText.includes('onde') || fullText.includes('unidade') || fullText.includes('endereço') || fullText.includes('telefone') || fullText.includes('ajuda')) {
-                type = 'suporte';
-            } else if (hasMedia) {
-                type = 'midia';
+
+            let type = 'fluxo';
+            if (fullText.includes('caro') || fullText.includes('pensar') || fullText.includes('esposa') || fullText.includes('marido') || fullText.includes('outro plano') || fullText.includes('desconto') || fullText.includes('mais barato')) {
+                type = 'objecao';
+            } else if (fullText.includes('como funciona') || fullText.includes('cobre') || fullText.includes('carência') || fullText.includes('idade') || fullText.includes('dependente') || fullText.includes('benefício') || fullText.includes('pagamento')) {
+                type = 'duvida';
             }
 
             const summaryList = AI_SUMMARIES[type];
             const summary = summaryList[seed % summaryList.length];
-            
-            // Qualidade baseada em critérios mais rígidos
-            let qualIdx = 1; // Bom por padrão
+
+            // Simulando Critérios do Novo Workflow: Conhecimento, Persuasão e Fechamento
+            const hasTechnical = session.total_msgs > 5; // Demonstra que o Vendedor soube explicar e manter o caso
             
             const responseTimes = [];
-            for(let i=1; i<session.messages.length; i++) {
-                if (session.messages[i].isEcho && !session.messages[i-1].isEcho) {
-                    const diff = (new Date(session.messages[i].dateTime) - new Date(session.messages[i-1].dateTime)) / 60000;
+            for (let i = 1; i < session.messages.length; i++) {
+                if (session.messages[i].isEcho && !session.messages[i - 1].isEcho) {
+                    const diff = (new Date(session.messages[i].dateTime) - new Date(session.messages[i - 1].dateTime)) / 60000;
                     responseTimes.push(diff);
                 }
             }
-            const avgWait = responseTimes.length ? responseTimes.reduce((a,b) => a+b, 0) / responseTimes.length : 0;
+            const avgWait = responseTimes.length ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length : 0;
+            
+            // Persuasão: fluxo contínuo de conversas (sem vácuos que percam o cliente) e argumentação longa
+            const hasPersuasion = avgWait < 15 && session.total_msgs > 4; 
+            
+            // Fechamento da venda (Heurística básica)
+            const closedSale = hasPersuasion && (fullText.includes('fechado') || fullText.includes('pode ser') || fullText.includes('pix') || fullText.includes('pagar') || fullText.includes('obrigad') || fullText.includes('link'));
 
-            if (session.is_waiting && (new Date() - new Date(session.last_time)) / 60000 > 20) qualIdx = 4; // Crítico
-            else if (avgWait > 15) qualIdx = 3; // Ruim
-            else if (avgWait > 5) qualIdx = 2; // Regular
-            else if (avgWait > 0 && avgWait <= 5 && !session.is_waiting) qualIdx = 0; // Excelente
-            else if (session.total_msgs > 8) qualIdx = 0; // Excelente por engajamento
+            let qualIdx = 1; // Boa
+            
+            if (hasTechnical && hasPersuasion && closedSale) qualIdx = 0;      // Ótima
+            else if (hasTechnical && hasPersuasion && !closedSale) qualIdx = 1; // Boa
+            else if (hasTechnical && !hasPersuasion) qualIdx = 2;               // Ruim
+            else qualIdx = 3;                                                   // Péssima
 
-            return { summary, quality: AI_QUALITIES[qualIdx], color: AI_COLORS[qualIdx] };
+            return { summary, quality: AI_QUALITIES[qualIdx], color: AI_COLORS[qualIdx], type };
         }
 
         function changePage(direction) {
@@ -783,16 +757,16 @@
             let filteredMessages = RAW_MESSAGES.filter(m => {
                 const mDate = new Date(m.dateTime);
                 const msgFullDate = mDate.toISOString().split('T')[0];
-                
+
                 // Filtro de Data (Cumulativo: Daquela data em diante)
                 if (dateFilter && msgFullDate < dateFilter) return false;
-                
+
                 // Filtro de Hora (Se estiver no mesmo dia da data inicial)
                 if (timeFilter && msgFullDate === dateFilter) {
                     const msgTime = mDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    return msgTime >= timeFilter; 
+                    return msgTime >= timeFilter;
                 }
-                
+
                 return true;
             });
 
@@ -849,12 +823,13 @@
                     }
                     if (s.total_msgs < 2) score -= 10;
                     s.quality_score = Math.max(0, score);
-                    
+
                     const ai = getAISimulation(s);
                     s.ai_summary = ai.summary;
                     s.ai_quality = ai.quality;
                     s.ai_color = ai.color;
-                    
+                    s.ai_type = ai.type;
+
                     return s;
                 });
 
@@ -916,7 +891,7 @@
                 hoursMap[hour] = (hoursMap[hour] || 0) + 1;
             });
 
-            const labels = Array.from({length: 12}, (_, i) => (i + 8) + 'h'); 
+            const labels = Array.from({ length: 12 }, (_, i) => (i + 8) + 'h');
             const lineData = labels.map(l => hoursMap[parseInt(l)] || 0);
 
             if (lineChartInstance) lineChartInstance.destroy();
@@ -936,38 +911,37 @@
                         tension: 0.4
                     }]
                 },
-                options: { 
+                options: {
                     plugins: { legend: { display: false } },
                     scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } }
                 }
             });
 
-            // Distribuição de Tipos de Mensagem
+            // Distribuição de Tipos (Dúvidas x Objeções)
             const typesMap = {};
-            messages.forEach(m => {
-                typesMap[m.type] = (typesMap[m.type] || 0) + 1;
+            sessions.forEach(s => {
+                const type = s.ai_type || 'fluxo';
+                typesMap[type] = (typesMap[type] || 0) + 1;
             });
-            const typeLabels = Object.keys(typesMap);
+            const typeLabels = Object.keys(typesMap).map(t => t === 'objecao' ? 'Objeções' : (t === 'duvida' ? 'Dúvidas' : 'Fluxo Comum'));
             const typeData = Object.values(typesMap);
-            
+
             if (typeChartInstance) typeChartInstance.destroy();
             const canvasType = document.getElementById('typeChart');
             if (!canvasType) return;
             const ctxType = canvasType.getContext('2d');
             typeChartInstance = new Chart(ctxType, {
-                type: 'bar',
+                type: 'pie',
                 data: {
                     labels: typeLabels,
                     datasets: [{
                         data: typeData,
-                        backgroundColor: 'var(--primary)',
-                        borderRadius: 4
+                        backgroundColor: ['#f43f5e', '#3b82f6', '#94a3b8'],
+                        borderWidth: 0
                     }]
                 },
-                options: { 
-                    indexAxis: 'y',
-                    plugins: { legend: { display: false } },
-                    scales: { y: { ticks: { color: '#94a3b8' } }, x: { display: false } }
+                options: {
+                    plugins: { legend: { position: 'right', labels: {color: '#94a3b8'} } }
                 }
             });
 
@@ -979,27 +953,27 @@
             const agentStats = {};
             sessions.forEach(s => {
                 const agent = s.last_agent;
-                if (!agentStats[agent]) agentStats[agent] = { total: 0, excellente: 0, delay: 0 };
+                if (!agentStats[agent]) agentStats[agent] = { total: 0, otimas: 0, boas: 0, ruins: 0, pessimas: 0 };
                 agentStats[agent].total++;
-                if (s.ai_quality === 'Excelente') agentStats[agent].excellente++;
-                if (s.is_waiting) agentStats[agent].delay++;
+                
+                if (s.ai_quality === 'Ótima') agentStats[agent].otimas++;
+                else if (s.ai_quality === 'Boa') agentStats[agent].boas++;
+                else if (s.ai_quality === 'Ruim') agentStats[agent].ruins++;
+                else agentStats[agent].pessimas++;
             });
 
             const container = document.getElementById('performance-insights');
             container.innerHTML = '';
-            
-            const sortedAgents = Object.entries(agentStats).sort((a, b) => b[1].excellente - a[1].excellente);
-            
+
             Object.entries(agentStats)
-                .sort((a, b) => b[1].excellente - a[1].excellente)
+                .sort((a, b) => b[1].otimas - a[1].otimas)
                 .forEach(([name, stats]) => {
-                    const perc = ((stats.excellente / stats.total) * 100).toFixed(0);
-                    const color = perc > 80 ? 'var(--accent-green)' : (perc > 50 ? 'var(--accent-yellow)' : 'var(--accent-red)');
+                    const conversoes = stats.otimas;
+                    const techKnowledge = stats.otimas + stats.boas + stats.ruins; // everyone except pessimas
+                    const persuasion = stats.otimas + stats.boas;
                     
-                    let reason = '';
-                    if (perc > 80) reason = '💡 <b>Ponto Positivo:</b> Interação frequente e fechamento de dúvidas rápido.';
-                    else if (perc > 50) reason = '⚠️ <b>Sugestão:</b> Reduzir tempo entre respostas para manter engajamento.';
-                    else reason = '❌ <b>Falha Comum:</b> Poucas mensagens enviadas, deixando o cliente sem resposta.';
+                    const score = (persuasion / stats.total) * 100 || 0;
+                    const color = score >= 50 ? 'var(--accent-gold)' : 'var(--text-muted)';
 
                     const div = document.createElement('div');
                     div.style.marginBottom = '12px';
@@ -1010,13 +984,10 @@
                     div.innerHTML = `
                         <div style="display:flex; justify-content:space-between; margin-bottom:4px">
                             <span><b>${name}</b></span>
-                            <span style="color:${color}">${perc}% Eficácia</span>
+                            <span style="color:${color}">${conversoes} Vendas Ouro</span>
                         </div>
-                        <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:8px">
-                            Concluídos: ${stats.total} | Pendentes: ${stats.delay}
-                        </div>
-                        <div style="font-size:0.75rem; line-height:1.4">
-                            ${reason}
+                        <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.4">
+                            <b>Técnico:</b> ${(techKnowledge/stats.total*100).toFixed(0)}% | <b>Persuasão:</b> ${(persuasion/stats.total*100).toFixed(0)}%
                         </div>
                     `;
                     container.appendChild(div);
@@ -1049,7 +1020,7 @@
             document.getElementById('count-messages').textContent = filteredMessages.length;
             document.getElementById('avg-score').textContent = (filteredMessages.length / (countSessions || 1)).toFixed(1);
             document.getElementById('count-critical').textContent = criticalCount;
-            
+
             // Qualidade Média
             if (sessions.length > 0) {
                 const totalScore = sessions.reduce((acc, s) => acc + AI_QUALITIES.indexOf(s.ai_quality), 0);
@@ -1148,7 +1119,7 @@
                 tableBody.appendChild(row);
             });
         }
-        
+
         function getScoreColor(score) {
             if (score >= 80) return 'var(--accent-green)';
             if (score >= 50) return 'var(--accent-yellow)';
@@ -1168,16 +1139,16 @@
             const customerName = chat.find(m => !m.isEcho)?.contact?.name || 'Cliente';
             title.textContent = customerName;
             subtitle.textContent = `Chat ID: ${chatId} • ${chat.length} mensagens`;
-            
+
             container.innerHTML = '';
-            
+
             chat.forEach(m => {
                 const bubble = document.createElement('div');
                 bubble.className = `message-bubble ${m.isEcho ? 'agent' : 'client'}`;
-                
+
                 const time = new Date(m.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 const author = m.isEcho ? `<b>${m.authorName || 'Oeste'}</b><br>` : '';
-                
+
                 let content = m.text || '';
                 if (m.type === 'image') {
                     content = `<img src="${m.contentUri}" style="max-width:100%; border-radius:8px; margin: 8px 0; display:block">`;
@@ -1195,7 +1166,7 @@
                                  <a href="${m.contentUri || '#'}" target="_blank" style="color:var(--primary)">📎 Mídia: ${m.type.toUpperCase()}</a>
                                </div>`;
                 }
-                
+
                 if (!content && !author) content = '<i>Cliente e atendente trocaram documentos</i>';
 
                 bubble.innerHTML = `
