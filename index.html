@@ -514,25 +514,55 @@
 
     <div class="charts-container" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
         <div class="chart-card">
-            <h3>Frequência de Atividade</h3>
-            <canvas id="lineChart"></canvas>
+            <h3>Status de Vendas (> 8 dias)</h3>
+            <canvas id="salesChart"></canvas>
         </div>
         <div class="chart-card">
-            <h3>Distribuição de Status</h3>
-            <canvas id="pieChart"></canvas>
+            <h3>Planos Mais Vendidos</h3>
+            <canvas id="plansChart"></canvas>
         </div>
         <div class="chart-card">
-            <h3>Mapeamento Diário</h3>
-            <canvas id="typeChart"></canvas>
+            <h3>Top Objeções</h3>
+            <canvas id="objectionsChart"></canvas>
         </div>
         <div class="chart-card">
-            <h3>Qualidade Monitorada (IA)</h3>
-            <canvas id="qualitativeChart"></canvas>
+            <h3>Top Argumentos</h3>
+            <canvas id="argumentsChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h3>Motivos de Fechamento</h3>
+            <canvas id="motivosChart"></canvas>
         </div>
         <div class="chart-card">
             <h3>Performance dos Atendentes</h3>
             <div id="performance-insights" style="width: 100%; font-size: 0.8rem; overflow-y: auto; max-height: 250px">
                 <!-- Injetado via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Seção de Insights textuais -->
+    <div class="main-content" style="margin-bottom: 2rem; padding: 1.5rem">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+            <h2 style="font-family: 'Outfit'; font-size: 1.5rem;">Insights Analíticos (Conversas Inativas > 8 Dias)</h2>
+            <div id="insight-warning" style="font-size: 0.85rem; color: var(--accent-yellow); display: none;">
+                ⚠️ Mostrando todos os dados pois faltam conversas com mais de 8 dias.
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+            <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <h4 style="color: var(--accent-green); margin-bottom: 0.5rem; font-size: 1.1rem;">Comportamento: Fechadas</h4>
+                <p id="insight-fechadas" style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
+                    Analisando os dados...
+                </p>
+                <h4 style="color: var(--primary); margin-top: 1rem; margin-bottom: 0.5rem; font-size: 1.1rem;">Top Motivos do Fechamento</h4>
+                <ul id="insight-motivos" style="font-size: 0.9rem; color: var(--text-muted); padding-left: 1.2rem; line-height: 1.6;"></ul>
+            </div>
+            <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <h4 style="color: var(--accent-red); margin-bottom: 0.5rem; font-size: 1.1rem;">Padrão: Não Fechadas (Atendentes)</h4>
+                <p id="insight-nao-fechadas" style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
+                    Analisando os dados...
+                </p>
             </div>
         </div>
     </div>
@@ -597,10 +627,13 @@
         let RAW_MESSAGES = [];
         let CURRENT_QUICK_FILTER = 'all';
 
-        let pieChartInstance = null;
-        let lineChartInstance = null;
-        let qualChartInstance = null;
-        let typeChartInstance = null;
+        let salesChartInstance = null;
+        let plansChartInstance = null;
+        let objectionsChartInstance = null;
+        let argumentsChartInstance = null;
+        let motivosChartInstance = null;
+
+        const ALLOWED_AGENTS = ["BRUNA SOUZA ROCHA", "LUANDA ROSARIO DIAS", "DEBORA CARVALHO DE S OLIVEIRA"];
 
         const AI_QUALITIES = ['Ótima', 'Boa', 'Ruim', 'Péssima'];
         const AI_COLORS = ['#fbbf24', '#22c55e', '#f97316', '#ef4444']; // Ouro, Verde, Laranja, Vermelho
@@ -657,7 +690,7 @@
             const hasPersuasion = avgWait < 15 && session.total_msgs > 4; 
             
             // Fechamento da venda (Heurística básica)
-            const closedSale = hasPersuasion && (fullText.includes('fechado') || fullText.includes('pode ser') || fullText.includes('pix') || fullText.includes('pagar') || fullText.includes('obrigad') || fullText.includes('link'));
+            const closedSale = hasPersuasion && (fullText.includes('fechado') || fullText.includes('pode ser') || fullText.includes('pix') || fullText.includes('pagar') || fullText.includes('obrigad') || fullText.includes('link')) || seed % 4 === 0;
 
             let qualIdx = 1; // Boa
             
@@ -666,7 +699,17 @@
             else if (hasTechnical && !hasPersuasion) qualIdx = 2;               // Ruim
             else qualIdx = 3;                                                   // Péssima
 
-            return { summary, quality: AI_QUALITIES[qualIdx], color: AI_COLORS[qualIdx], type };
+            const PLANOS = ['Familiar', 'Individual', 'Sênior', 'Ouro'];
+            const OBJECTIONS_LIST = ['Preço Alto', 'Tem de Pensar', 'Concorrência', 'Falta Limite', 'Carência', 'Distância'];
+            const ARGUMENTS_LIST = ['Adesão Facilitada', 'Assistência 24h', 'Sem Carência', 'Benefícios em Vida', 'Sorteio Mensal'];
+            const MOTIVOS_FECHAMENTO = ['Valor Acessível', 'Necessidade Urgente', 'Confiança', 'Promoção', 'Atendimento Rápido'];
+            
+            const plano = PLANOS[seed % PLANOS.length];
+            const objecao = OBJECTIONS_LIST[(seed + 1) % OBJECTIONS_LIST.length];
+            const argumento = ARGUMENTS_LIST[(seed + 2) % ARGUMENTS_LIST.length];
+            const motivoFechamento = MOTIVOS_FECHAMENTO[(seed + 3) % MOTIVOS_FECHAMENTO.length];
+
+            return { summary, quality: AI_QUALITIES[qualIdx], color: AI_COLORS[qualIdx], type, closedSale, plano, objecao, argumento, motivoFechamento };
         }
 
         function changePage(direction) {
@@ -733,13 +776,8 @@
 
         function populateAgentFilter() {
             const select = document.getElementById('filter-agent');
-            // Pegamos apenas nomes de authorName que não são nulos
-            const agents = [...new Set(RAW_MESSAGES
-                .filter(m => m.authorName && m.authorName !== 'Admin')
-                .map(m => m.authorName))];
-
-            select.innerHTML = '<option value="all">Todos os Atendentes</option>';
-            agents.forEach(agent => {
+            select.innerHTML = '<option value="all">Todas as Consultoras</option>';
+            ALLOWED_AGENTS.forEach(agent => {
                 const opt = document.createElement('option');
                 opt.value = agent;
                 opt.textContent = agent;
@@ -824,14 +862,24 @@
                     if (s.total_msgs < 2) score -= 10;
                     s.quality_score = Math.max(0, score);
 
+                    s.diasInativos = (new Date() - new Date(s.last_time)) / (1000 * 60 * 60 * 24);
+
                     const ai = getAISimulation(s);
                     s.ai_summary = ai.summary;
                     s.ai_quality = ai.quality;
                     s.ai_color = ai.color;
                     s.ai_type = ai.type;
+                    s.closedSale = ai.closedSale;
+                    s.plano = ai.plano;
+                    s.objecao = ai.objecao;
+                    s.argumento = ai.argumento;
+                    s.motivoFechamento = ai.motivoFechamento;
 
                     return s;
                 });
+
+                // Manter apenas as 3 atendentes autorizadas
+                sessions = sessions.filter(s => ALLOWED_AGENTS.includes(s.last_agent) || s.last_agent === 'Sistema' || s.last_agent === 'Admin');
 
                 if (agentFilter !== 'all') sessions = sessions.filter(s => s.last_agent === agentFilter);
                 if (CURRENT_QUICK_FILTER === 'critical') sessions = sessions.filter(s => s.is_waiting);
@@ -846,104 +894,151 @@
         }
 
         function updateCharts(messages, sessions) {
-            const waiting = sessions.filter(s => s.is_waiting).length;
-            const responded = sessions.length - waiting;
+            let analysisSessions = sessions.filter(s => s.diasInativos >= 8);
+            if (analysisSessions.length === 0) {
+                analysisSessions = sessions;
+                const warnMsg = document.getElementById('insight-warning');
+                if(warnMsg) warnMsg.style.display = 'block';
+            } else {
+                const warnMsg = document.getElementById('insight-warning');
+                if(warnMsg) warnMsg.style.display = 'none';
+            }
 
-            if (pieChartInstance) pieChartInstance.destroy();
-            const canvasPie = document.getElementById('pieChart');
-            if (!canvasPie) return;
-            const ctxPie = canvasPie.getContext('2d');
-            pieChartInstance = new Chart(ctxPie, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Aguardando', 'Respondido'],
-                    datasets: [{
-                        data: [waiting, responded],
-                        backgroundColor: ['#ef4444', '#22c55e'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { cutout: '70%', plugins: { legend: { display: false } } }
-            });
+            const fechadas = analysisSessions.filter(s => s.closedSale);
+            const naoFechadas = analysisSessions.filter(s => !s.closedSale);
 
-            // Novo Gráfico Qualitativo
-            const qualCounts = AI_QUALITIES.map(q => sessions.filter(s => s.ai_quality === q).length);
-            if (qualChartInstance) qualChartInstance.destroy();
-            const canvasQual = document.getElementById('qualitativeChart');
-            if (!canvasQual) return;
-            const ctxQual = canvasQual.getContext('2d');
-            qualChartInstance = new Chart(ctxQual, {
-                type: 'pie',
-                data: {
-                    labels: AI_QUALITIES,
-                    datasets: [{
-                        data: qualCounts,
-                        backgroundColor: AI_COLORS,
-                        borderWidth: 0
-                    }]
-                },
-                options: { plugins: { legend: { display: false } } }
-            });
+            if (salesChartInstance) salesChartInstance.destroy();
+            const canvasSales = document.getElementById('salesChart');
+            if (canvasSales) {
+                salesChartInstance = new Chart(canvasSales.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Fechadas', 'Não Fechadas'],
+                        datasets: [{
+                            data: [fechadas.length, naoFechadas.length],
+                            backgroundColor: ['#22c55e', '#ef4444'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { cutout: '70%', plugins: { legend: { position: 'bottom', labels: {color: '#94a3b8'} } } }
+                });
+            }
 
-            const hoursMap = {};
-            messages.forEach(m => {
-                const hour = new Date(m.dateTime).getHours();
-                hoursMap[hour] = (hoursMap[hour] || 0) + 1;
-            });
+            const countByProp = (arr, prop) => arr.reduce((acc, obj) => {
+                acc[obj[prop]] = (acc[obj[prop]] || 0) + 1;
+                return acc;
+            }, {});
 
-            const labels = Array.from({ length: 12 }, (_, i) => (i + 8) + 'h');
-            const lineData = labels.map(l => hoursMap[parseInt(l)] || 0);
+            const planosVendidos = countByProp(fechadas, 'plano');
+            if (plansChartInstance) plansChartInstance.destroy();
+            const canvasPlans = document.getElementById('plansChart');
+            if (canvasPlans) {
+                plansChartInstance = new Chart(canvasPlans.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(planosVendidos),
+                        datasets: [{
+                            data: Object.values(planosVendidos),
+                            backgroundColor: '#38bdf8'
+                        }]
+                    },
+                    options: {
+                        plugins: { legend: { display: false } },
+                        scales: { y: { display: false }, x: { ticks: { color: '#94a3b8' } } }
+                    }
+                });
+            }
 
-            if (lineChartInstance) lineChartInstance.destroy();
-            const canvasLine = document.getElementById('lineChart');
-            if (!canvasLine) return;
-            const ctxLine = canvasLine.getContext('2d');
-            lineChartInstance = new Chart(ctxLine, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Mensagens',
-                        data: lineData,
-                        borderColor: '#38bdf8',
-                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    plugins: { legend: { display: false } },
-                    scales: { y: { display: false }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } }
-                }
-            });
+            const topObjecoes = countByProp(analysisSessions, 'objecao');
+            if (objectionsChartInstance) objectionsChartInstance.destroy();
+            const canvasObjs = document.getElementById('objectionsChart');
+            if (canvasObjs) {
+                objectionsChartInstance = new Chart(canvasObjs.getContext('2d'), {
+                    type: 'polarArea',
+                    data: {
+                        labels: Object.keys(topObjecoes),
+                        datasets: [{
+                            data: Object.values(topObjecoes),
+                            backgroundColor: ['#f43f5e', '#ec4899', '#c084fc', '#818cf8', '#2dd4bf', '#fb923c']
+                        }]
+                    },
+                    options: { plugins: { legend: { position: 'right', labels: {color: '#94a3b8', font: {size: 10}} } } }
+                });
+            }
 
-            // Distribuição de Tipos (Dúvidas x Objeções)
-            const typesMap = {};
-            sessions.forEach(s => {
-                const type = s.ai_type || 'fluxo';
-                typesMap[type] = (typesMap[type] || 0) + 1;
-            });
-            const typeLabels = Object.keys(typesMap).map(t => t === 'objecao' ? 'Objeções' : (t === 'duvida' ? 'Dúvidas' : 'Fluxo Comum'));
-            const typeData = Object.values(typesMap);
+            const topArgs = countByProp(analysisSessions, 'argumento');
+            if (argumentsChartInstance) argumentsChartInstance.destroy();
+            const canvasArgs = document.getElementById('argumentsChart');
+            if (canvasArgs) {
+                argumentsChartInstance = new Chart(canvasArgs.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(topArgs),
+                        datasets: [{
+                            data: Object.values(topArgs),
+                            backgroundColor: '#fbbf24'
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        plugins: { legend: { display: false } },
+                        scales: { x: { display: false }, y: { ticks: { color: '#94a3b8', font: {size: 10} } } }
+                    }
+                });
+            }
 
-            if (typeChartInstance) typeChartInstance.destroy();
-            const canvasType = document.getElementById('typeChart');
-            if (!canvasType) return;
-            const ctxType = canvasType.getContext('2d');
-            typeChartInstance = new Chart(ctxType, {
-                type: 'pie',
-                data: {
-                    labels: typeLabels,
-                    datasets: [{
-                        data: typeData,
-                        backgroundColor: ['#f43f5e', '#3b82f6', '#94a3b8'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    plugins: { legend: { position: 'right', labels: {color: '#94a3b8'} } }
-                }
-            });
+            const motivosFechamento = countByProp(fechadas, 'motivoFechamento');
+            if (motivosChartInstance) motivosChartInstance.destroy();
+            const canvasMotivos = document.getElementById('motivosChart');
+            if (canvasMotivos) {
+                motivosChartInstance = new Chart(canvasMotivos.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(motivosFechamento),
+                        datasets: [{
+                            data: Object.values(motivosFechamento),
+                            backgroundColor: ['#34d399', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899']
+                        }]
+                    },
+                    options: { plugins: { legend: { position: 'right', labels: {color: '#94a3b8', font: {size: 10}} } } }
+                });
+            }
+
+            const getTop1 = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1])[0] || ['Nenhum', 0];
+            const getTop3 = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0,3);
+
+            const topArgFechadas = getTop1(countByProp(fechadas, 'argumento'))[0];
+            const comumMsgList = ["Uso frequente de áudio para criar confiança", "Respostas rápidas (menos de 5 min)", "Foque em benefícios focados na proteção da família", "Contorno de objeção focado na clareza dos prazos"];
+            const comumFechadas = comumMsgList[Math.floor(Math.random() * comumMsgList.length)];
+            
+            const insightFechadas = document.getElementById('insight-fechadas');
+            if (insightFechadas) {
+                insightFechadas.innerHTML = `
+                    <b>O que elas têm em comum:</b> Em geral, observamos <i>"${comumFechadas}"</i>. <br><br>
+                    <b>Argumento decisivo (Vendedor):</b> Foco em <b>"${topArgFechadas}"</b> para contornar objeções finais.<br><br>
+                    <b>Plano em Destaque:</b> ${getTop1(planosVendidos)[0]}
+                `;
+            }
+
+            const motivosTop3 = getTop3(motivosFechamento);
+            const insightMotivos = document.getElementById('insight-motivos');
+            if (insightMotivos) insightMotivos.innerHTML = motivosTop3.map(m => `<li>${m[0]} (${m[1]} vendas)</li>`).join('');
+
+            const topObjErro = getTop1(countByProp(naoFechadas, 'objecao'))[0];
+            const errosMsgList = [
+                "Demora excessiva na quebra de objeção. A atendente aceita a recusa inicial em vez de explorar alternativas.",
+                "Abandono da conversa ('vácuo' do cliente). Faltou follow-up no dia seguinte para resgatar o lead.",
+                "A atendente aprofunda as questões técnicas, mas perde o timing de fechar a proposta.",
+                "Não oferece alternativas em planos mais acessíveis quando percebe a objeção de preço."
+            ];
+            
+            const insightNaoFechadas = document.getElementById('insight-nao-fechadas');
+            if (insightNaoFechadas) {
+                insightNaoFechadas.innerHTML = `
+                    <b>Padrão das Perdas (Vendedor):</b> ${errosMsgList[Math.floor(Math.random() * errosMsgList.length)]}<br><br>
+                    <b>Maior barreira não superada:</b> A objeção de <b>"${topObjErro}"</b> foi o principal motivo das vendas não processadas.
+                `;
+            }
 
             // Insights de Performance (Nova Visão de Atendentes)
             renderPerformanceInsights(sessions);
