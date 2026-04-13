@@ -767,11 +767,8 @@
             const dateStart = document.getElementById('filter-date-start').value;
             const dateEnd = document.getElementById('filter-date-end').value;
 
-            // 1. Filtro Global (Remove Sistema/Oeste da estatística, e filtra Data)
+            // 1. Filtro Global (Aplica range de datas)
             let filteredMessages = RAW_MESSAGES.filter(m => {
-                const author = m.authorName || 'Cliente';
-                if (author === 'Admin' || author === 'Sistema' || author === 'Oeste') return false;
-
                 const mDate = new Date(m.dateTime);
                 const msgFullDate = mDate.toISOString().split('T')[0];
 
@@ -836,6 +833,9 @@
 
                 return s;
             });
+
+            // Removemos as sessões inteiras caso quem assumiu/ficou com o atendimento foi o bot ou o Admin
+            sessions = sessions.filter(s => s.last_agent !== 'Admin' && s.last_agent !== 'Sistema' && s.last_agent !== 'Oeste');
 
             // Filtro final da Atendente se necessário (aplica EM TUDO)
             if (agentFilter !== 'all') sessions = sessions.filter(s => s.last_agent === agentFilter);
