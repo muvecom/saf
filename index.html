@@ -461,8 +461,11 @@
             </div>
         </div>
         <div style="display:flex; gap:0.5rem; align-items:center">
+            <span style="color:var(--text-muted); font-size: 0.9rem; font-weight: 600;">De:</span>
             <input type="date" id="filter-date-start" onchange="applyFilters()"
                 style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
+                
+            <span style="color:var(--text-muted); font-size: 0.9rem; font-weight: 600; margin-left: 0.5rem;">Até:</span>
             <input type="date" id="filter-date-end" onchange="applyFilters()"
                 style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
 
@@ -483,6 +486,10 @@
 
 
     <div class="charts-container" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+        <div class="chart-card">
+            <h3>Qualidade das Conversas</h3>
+            <canvas id="qualityChart"></canvas>
+        </div>
         <div class="chart-card">
             <h3>Status de Vendas (> 8 dias)</h3>
             <canvas id="salesChart"></canvas>
@@ -597,6 +604,7 @@
         let RAW_MESSAGES = [];
         let CURRENT_QUICK_FILTER = 'all';
 
+        let qualityChartInstance = null;
         let salesChartInstance = null;
         let plansChartInstance = null;
         let objectionsChartInstance = null;
@@ -605,7 +613,7 @@
 
         const ALLOWED_AGENTS = ["BRUNA SOUZA ROCHA", "LUANDA ROSARIO DIAS", "DEBORA CARVALHO DE S OLIVEIRA"];
 
-        const AI_QUALITIES = ['Ótima', 'Boa', 'Ruim', 'Péssima'];
+        const AI_QUALITIES = ['Ótima', 'Boa', 'Regular', 'Ruim'];
         const AI_COLORS = ['#fbbf24', '#22c55e', '#f97316', '#ef4444']; // Ouro, Verde, Laranja, Vermelho
 
         const AI_SUMMARIES = {
@@ -667,10 +675,10 @@
 
             let qualIdx = 1; // Boa
             
-            if (closedSale) qualIdx = 0; // Ótima - Vender automaticamente dá "Ótima", o que mostra eficiência.
+            if (closedSale) qualIdx = 0; // Ótima
             else if (hasTechnical && hasPersuasion) qualIdx = 1; // Boa
-            else if (hasTechnical && !hasPersuasion) qualIdx = 2; // Ruim
-            else qualIdx = 3; // Péssima
+            else if (hasTechnical && !hasPersuasion) qualIdx = 2; // Regular
+            else qualIdx = 3; // Ruim
 
             const PLANOS = ['Familiar', 'Individual', 'Sênior', 'Ouro'];
             const OBJECTIONS_LIST = ['Preço Alto', 'Tem de Pensar', 'Concorrência', 'Falta Limite', 'Carência', 'Distância'];
@@ -710,7 +718,10 @@
 
             try {
                 const response = await fetch(WEBHOOK_URL);
-                const json = await response.json();
+                const textData = await response.text();
+                // If API returns entirely empty text, we do a silent quit, ignoring it completely. No error, no table erase.
+                if (!textData) return;
+                const json = JSON.parse(textData);
 
                 let allMessages = [];
                 const entries = Array.isArray(json) ? json : [json];
@@ -779,10 +790,9 @@
             filteredMessages.forEach(msg => {
                 const id = msg.chatId || 'Desconhecido';
                 
-                // Tratativa de Bug de Template / Mídia Quebrada
-                if (msg.type !== 'text' || (msg.text && msg.text.includes("Olá! Deseja dar continuidade"))) {
+                // Tratativa para templates que vêm vazios mas indicam uma inatividade/tentativa (opcional, só no texto)
+                if (msg.type && msg.type.includes('template') && !msg.text) {
                     msg.text = "Olá! Deseja dar continuidade ao atendimento?";
-                    msg.type = "template";
                 }
 
                 if (!sessionsMap[id]) {
@@ -879,6 +889,24 @@
                 acc[obj[prop]] = (acc[obj[prop]] || 0) + 1;
                 return acc;
             }, {});
+
+            if (qualityChartInstance) qualityChartInstance.destroy();
+            const canvasQuality = document.getElementById('qualityChart');
+            if (canvasQuality) {
+                const qualityData = countByProp(analysisSessions, 'ai_quality');
+                qualityChartInstance = new Chart(canvasQuality.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(qualityData),
+                        datasets: [{
+                            data: Object.values(qualityData),
+                            backgroundColor: Object.keys(qualityData).map(label => AI_COLORS[AI_QUALITIES.indexOf(label)] || '#cbd5e1'),
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { plugins: { legend: { position: 'right', labels: {color: '#94a3b8', font: {size: 10}} } } }
+                });
+            }
 
             const planosVendidos = countByProp(fechadas, 'plano');
             if (plansChartInstance) plansChartInstance.destroy();
@@ -1006,7 +1034,7 @@
                 
                 if (s.ai_quality === 'Ótima') agentStats[agent].otimas++;
                 else if (s.ai_quality === 'Boa') agentStats[agent].boas++;
-                else if (s.ai_quality === 'Ruim') agentStats[agent].ruins++;
+                else if (s.ai_quality === 'Regular') agentStats[agent].ruins++;
                 else agentStats[agent].pessimas++;
             });
 
@@ -1022,6 +1050,10 @@
                     if (conversoes >= 1) callToAction = '🥇 Ótimo domínio das objeções de clientes.';
                     if (stats.otimas === 0 && stats.total > 0) callToAction = '⚠️ Tem feito a parte técnica, mas precisa melhorar fechamento.';
                     
+                    let aiRecommendation = "Recomendação: Continue aplicando as boas práticas de quebra de objeções.";
+                    if (stats.otimas === 0) aiRecommendation = "Recomendação: Analise as conversas Fechadas no painel. Tente focar mais nos argumentos de Sorteio Mensal e Sem Carência em vez de debater apenas o preço.";
+                    if (stats.pessimas > stats.boas) aiRecommendation = "Recomendação: Fique atento ao tempo de resposta! Evite deixar o cliente mais de 15 minutos esperando.";
+
                     const div = document.createElement('div');
                     div.style.marginBottom = '12px';
                     div.style.padding = '10px';
@@ -1034,7 +1066,8 @@
                             <span style="color:var(--accent-gold)">${conversoes} Vendas Ouro</span>
                         </div>
                         <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.4">
-                            <b>Análise IA:</b> ${callToAction}
+                            <b>Análise:</b> ${callToAction}<br>
+                            <span style="color:var(--primary); font-weight:600; margin-top:4px; display:inline-block;">${aiRecommendation}</span>
                         </div>
                     `;
                     container.appendChild(div);
@@ -1153,14 +1186,17 @@
                                  <span>📄</span>
                                  <a href="${m.contentUri}" target="_blank" style="color:var(--primary); word-break:break-all">${m.contentUri.split('filename=')[1] || 'Documento'}</a>
                                </div>`;
-                } else if (m.type === 'template') {
-                    content = `<div style="background:rgba(34, 197, 94, 0.05); border-left: 3px solid var(--accent-green); padding:10px; border-radius:8px; margin:8px 0; font-size: 0.85rem; color: #94a3b8;">
-                                 <b style="color:var(--accent-green)">🤖 Template Automático da Meta</b><br>
-                                 ${m.text || 'Mensagem do sistema acionada.'}
+                } else if (m.type && m.type.includes('template')) {
+                    const textColor = m.isEcho ? '#0f172a' : '#cbd5e1';
+                    const titleColor = m.isEcho ? '#065f46' : 'var(--accent-green)';
+                    content = `<div style="background:rgba(34, 197, 94, 0.1); border-left: 3px solid var(--accent-green); padding:10px; border-radius:8px; margin:8px 0; font-size: 0.85rem; color: ${textColor};">
+                                 <b style="color:${titleColor}">🤖 Template da Meta</b><br><br>
+                                 ${m.text || '<i>[Mensagem não extraída]</i>'}
                                </div>`;
                 } else if (m.type !== 'text') {
-                    content = `<div style="background:rgba(255,255,255,0.1); padding:10px; border-radius:8px; margin:8px 0;">
-                                 <a href="${m.contentUri || '#'}" target="_blank" style="color:var(--primary)">📎 Mídia Alternativa / Indisponível</a>
+                    const textColor = m.isEcho ? '#0f172a' : 'var(--primary)';
+                    content = `<div style="background:rgba(0,0,0,0.1); padding:10px; border-radius:8px; margin:8px 0;">
+                                 <a href="${m.contentUri || '#'}" target="_blank" style="color:${textColor}; text-decoration: underline;">📎 Abrir Mídia: ${m.type.toUpperCase() || 'Arquivo'}</a>
                                </div>`;
                 }
 
