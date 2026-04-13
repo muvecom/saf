@@ -710,11 +710,7 @@
 
             try {
                 const response = await fetch(WEBHOOK_URL);
-                const textData = await response.text();
-                if (!textData) {
-                    throw new Error("A API retornou uma resposta vazia.");
-                }
-                const json = JSON.parse(textData);
+                const json = await response.json();
 
                 let allMessages = [];
                 const entries = Array.isArray(json) ? json : [json];
