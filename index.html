@@ -830,8 +830,8 @@
                 return s;
             });
 
-            // Removemos as sessões inteiras caso quem assumiu/ficou com o atendimento foi o bot ou o Admin
-            sessions = sessions.filter(s => s.last_agent !== 'Admin' && s.last_agent !== 'Sistema' && s.last_agent !== 'Oeste');
+            // Garantindo que SOMENTE as 3 atendentes autorizadas existam no painel (Isso também elimina Sistema, Oeste, Admin etc)
+            sessions = sessions.filter(s => ALLOWED_AGENTS.includes(s.last_agent));
 
             // Filtro final da Atendente se necessário (aplica EM TUDO)
             if (agentFilter !== 'all') sessions = sessions.filter(s => s.last_agent === agentFilter);
