@@ -806,10 +806,17 @@
                     sessionsMap[id].last_time = msg.dateTime;
                     sessionsMap[id].last_message = msg.text || `[${msg.type || 'Mídia'}]`;
                     
-                    // Condição de Aguardando (Evitar encerradas):
                     const isEncerrado = msg.text && (msg.text.toLowerCase().includes('tchau') || msg.text.toLowerCase().includes('encerrado'));
                     sessionsMap[id].is_waiting = !msg.isEcho && !isEncerrado && sessionsMap[id].total_msgs >= 3; 
-                    if (msg.isEcho && msg.authorName) sessionsMap[id].last_agent = msg.authorName;
+                }
+
+                // Descoberta do Agente Real: Se uma das 3 atendentes falou na conversa, a conversa é dela.
+                if (msg.isEcho && msg.authorName) {
+                    if (ALLOWED_AGENTS.includes(msg.authorName)) {
+                        sessionsMap[id].last_agent = msg.authorName;
+                    } else if (sessionsMap[id].last_agent === 'Sistema') {
+                        sessionsMap[id].last_agent = msg.authorName;
+                    }
                 }
             });
 
