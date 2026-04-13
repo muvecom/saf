@@ -1048,11 +1048,7 @@
         }
 
         function updateStats(sessions = []) {
-            const countSessions = sessions.length;
-            const criticalCount = sessions.length ? sessions.filter(s => s.is_waiting).length : '---';
-
-            document.getElementById('count-sessions').textContent = countSessions;
-            document.getElementById('count-critical').textContent = criticalCount;
+            // Stats UI removed from HTML - Function kept for potential future qualitative logic
         }
 
 
