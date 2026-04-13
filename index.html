@@ -852,6 +852,9 @@
         function updateCharts(sessions) {
             const analysisSessions = sessions;
 
+            const fechadas = analysisSessions.filter(s => s.closedSale);
+            const naoFechadas = analysisSessions.filter(s => !s.closedSale);
+
             if (salesChartInstance) salesChartInstance.destroy();
             const canvasSales = document.getElementById('salesChart');
             if (canvasSales) {
