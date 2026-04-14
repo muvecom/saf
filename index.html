@@ -771,7 +771,7 @@
                     }
                 });
 
-                RAW_MESSAGES = allMessages.filter(m => m.authorName !== 'Admin');
+                RAW_MESSAGES = allMessages;
                 populateAgentFilter();
                 applyFilters();
             } catch (error) {
@@ -1173,13 +1173,18 @@
                 const statusText = session.is_waiting ? 'Aguardando' : 'Respondido';
                 const initials = session.customer_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
+                const lastMsgDateFormatted = new Date(session.last_time).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
                 row.innerHTML = `
                     <td>
                         <div class="customer-pill">
                             <div class="avatar">${initials}</div>
                             <div>
                                 <div style="font-weight:600">${session.customer_name}</div>
-                                <div style="font-size:0.75rem; color:var(--text-muted)">ID: ${session.chatId}</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                                    ID: ${session.chatId} <br>
+                                    <span style="color:var(--primary)">Última: ${lastMsgDateFormatted}</span>
+                                </div>
                             </div>
                         </div>
                     </td>
@@ -1223,15 +1228,31 @@
             subtitle.textContent = `Chat ID: ${chatId} • ${chat.length} mensagens`;
 
             container.innerHTML = '';
+            let lastDateStr = '';
 
             chat.forEach(m => {
+                const msgDateObj = new Date(m.dateTime);
+                const msgDateStr = msgDateObj.toLocaleDateString('pt-BR');
+
+                // Linha de Data do WhatsApp (Virada de Dia)
+                if (msgDateStr !== lastDateStr) {
+                    const divider = document.createElement('div');
+                    divider.style.textAlign = 'center';
+                    divider.style.margin = '15px 0 10px 0';
+                    divider.innerHTML = `<span style="background: rgba(255,255,255,0.05); padding: 5px 15px; border-radius: 20px; font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">🗓️ ${msgDateStr}</span>`;
+                    container.appendChild(divider);
+                    lastDateStr = msgDateStr;
+                }
+
                 const bubble = document.createElement('div');
                 bubble.className = `message-bubble ${m.isEcho ? 'agent' : 'client'}`;
 
-                const time = new Date(m.dateTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const time = msgDateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                 const author = m.isEcho ? `<b>${m.authorName || 'Oeste'}</b><br>` : '';
 
-                let content = m.text || '';
+                // Respeitando as quebras de linha para mensagens longas
+                let content = m.text ? m.text.replace(/\n/g, '<br>') : '';
+                
                 if (m.type === 'image') {
                     content = `<img src="${m.contentUri}" style="max-width:100%; border-radius:8px; margin: 8px 0; display:block">`;
                 } else if (m.type === 'audio') {
