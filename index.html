@@ -749,6 +749,9 @@
             tableCard.style.opacity = '0.5';
 
             try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get('token') || '';
+
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'GET',
                     headers: {
