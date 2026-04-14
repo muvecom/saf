@@ -485,14 +485,30 @@
 
 
 
+    <!-- LINHA MASTER - TOTAL DE VENDAS E QUALIDADE -->
+    <div class="charts-container" style="grid-template-columns: 1fr 1fr; margin-bottom: 2rem;">
+        <div class="chart-card" style="display: flex; flex-direction: column; justify-content: center; background: none; border: none; padding: 0;">
+            <div style="background: var(--card-bg); border: 1px solid rgba(255, 255, 255, 0.05); padding: 2rem; border-radius: 16px; margin-bottom: 1rem; text-align: center;">
+                <h3 style="margin-bottom: 0.5rem; color: var(--text-muted); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; width: 100%;">Conversas Analisadas</h3>
+                <div id="big-total-conversas" style="font-size: 4rem; font-weight: 800; font-family: 'Outfit';">0</div>
+            </div>
+            <div style="background: rgba(34, 197, 94, 0.05); border: 1px solid var(--accent-green); padding: 2rem; border-radius: 16px; text-align: center;">
+                <h3 style="margin-bottom: 0.5rem; color: var(--accent-green); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; width: 100%;">Total Vendas (Ótimas)</h3>
+                <div id="big-total-vendas" style="font-size: 4rem; font-weight: 800; font-family: 'Outfit'; color: var(--accent-green);">0</div>
+            </div>
+        </div>
+        
+        <div class="chart-card">
+            <h3 style="font-size: 1.2rem; margin-bottom: 1rem; width: 100%;">Qualificação Geral</h3>
+            <canvas id="qualityChart"></canvas>
+        </div>
+    </div>
+
+    <!-- LINHA SECUNDÁRIA - VOLUMETRIA E PLANOS -->
     <div class="charts-container" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
         <div class="chart-card">
-            <h3 id="volume-title">Volume de Conversas (0)</h3>
+            <h3 id="volume-title">Volume por Atendente</h3>
             <canvas id="volumeChart"></canvas>
-        </div>
-        <div class="chart-card">
-            <h3>Qualidade das Conversas</h3>
-            <canvas id="qualityChart"></canvas>
         </div>
         <div class="chart-card">
             <h3>Status de Vendas (> 8 dias)</h3>
@@ -614,6 +630,9 @@
         let RAW_MESSAGES = [];
         let CURRENT_QUICK_FILTER = 'all';
 
+        let SORT_COLUMN = 'last_time';
+        let SORT_ASC = false;
+
         let volumeChartInstance = null;
         let qualityChartInstance = null;
         let salesChartInstance = null;
@@ -624,8 +643,8 @@
 
         const ALLOWED_AGENTS = ["BRUNA SOUZA ROCHA", "LUANDA ROSARIO DIAS", "DEBORA CARVALHO DE S OLIVEIRA"];
 
-        const AI_QUALITIES = ['Ótima', 'Boa', 'Regular', 'Ruim'];
-        const AI_COLORS = ['#22c55e', '#3b82f6', '#f97316', '#ef4444']; // Verde, Azul, Laranja, Vermelho
+        const AI_QUALITIES = ['Ótima', 'Boa', 'Regular', 'Ruim', 'Não Iniciada'];
+        const AI_COLORS = ['#22c55e', '#3b82f6', '#f97316', '#ef4444', '#64748b']; // Verde, Azul, Laranja, Vermelho, Cinza
 
         const AI_SUMMARIES = {
             'objecao': [
@@ -705,9 +724,11 @@
 
             // Regra de Venda Real
             const closedSale = isFechadoText && (session.diasInativos > 8);
+            const totalClientMsgs = session.messages.filter(m => !m.isEcho).length;
 
             let qualIdx = 2; // Regular (Default)
-            if (closedSale) qualIdx = 0; // Ótima
+            if (totalClientMsgs === 0) qualIdx = 4; // Não Iniciada
+            else if (closedSale) qualIdx = 0; // Ótima
             else if (hasTechnical && hasPersuasion && avgWait < 15) qualIdx = 1; // Boa
             else if (clientAudios > 0) qualIdx = 1; // Boa (Interação engajada por áudio)
             else if (agentAudios > 0) qualIdx = 2; // Regular (Esforço de vendas por áudio)
@@ -730,28 +751,32 @@
             renderPaginatedView();
         }
 
+        function toggleSort(column) {
+            if (SORT_COLUMN === column) {
+                SORT_ASC = !SORT_ASC;
+            } else {
+                SORT_COLUMN = column;
+                SORT_ASC = false;
+            }
+            applyFilters();
+        }
+
         function setQuickFilter(type) {
             CURRENT_QUICK_FILTER = type;
-
-            // Visual feedback nos cards
             document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
             if (type === 'critical') document.getElementById('card-critical').classList.add('active');
-
-            CURRENT_PAGE = 1; // Reseta página ao filtrar
+            CURRENT_PAGE = 1;
             applyFilters();
         }
 
         async function fetchData() {
             const loading = document.getElementById('loading');
             const tableCard = document.querySelector('.table-card');
-
             loading.style.display = 'flex';
             tableCard.style.opacity = '0.5';
-
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 const token = urlParams.get('token') || '';
-
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'GET',
                     headers: {
@@ -760,13 +785,10 @@
                     }
                 });
                 const textData = await response.text();
-                // If API returns entirely empty text, we do a silent quit, ignoring it completely. No error, no table erase.
                 if (!textData) return;
                 const json = JSON.parse(textData);
-
                 let allMessages = [];
                 const entries = Array.isArray(json) ? json : [json];
-
                 entries.forEach(entry => {
                     const source = entry.body || entry;
                     if (source.data && Array.isArray(source.data)) {
@@ -785,7 +807,6 @@
                         allMessages.push(source);
                     }
                 });
-
                 RAW_MESSAGES = allMessages;
                 populateAgentFilter();
                 applyFilters();
@@ -814,28 +835,19 @@
             const agentFilter = document.getElementById('filter-agent').value;
             const dateStart = document.getElementById('filter-date-start').value;
             const dateEnd = document.getElementById('filter-date-end').value;
-
-            // 1. Filtro Global (Aplica range de datas)
             let filteredMessages = RAW_MESSAGES.filter(m => {
                 const mDate = new Date(m.dateTime);
                 const msgFullDate = mDate.toISOString().split('T')[0];
-
                 if (dateStart && msgFullDate < dateStart) return false;
                 if (dateEnd && msgFullDate > dateEnd) return false;
-
                 return true;
             });
-
-            // 2. Lógica para Sessões (Agregado)
             const sessionsMap = {};
             filteredMessages.forEach(msg => {
                 const id = msg.chatId || 'Desconhecido';
-
-                // Tratativa para templates que vêm vazios mas indicam uma inatividade/tentativa (opcional, só no texto)
                 if (msg.type && msg.type.includes('template') && !msg.text) {
                     msg.text = "Olá! Deseja dar continuidade ao atendimento?";
                 }
-
                 if (!sessionsMap[id]) {
                     sessionsMap[id] = {
                         chatId: id,
@@ -846,22 +858,18 @@
                         last_agent: 'Sistema',
                         is_waiting: false,
                         total_msgs: 0,
-                        quality_score: 100 // Inicia perfeito
+                        quality_score: 100
                     };
                 }
                 sessionsMap[id].messages.push(msg);
                 sessionsMap[id].total_msgs++;
-
                 const msgDate = new Date(msg.dateTime);
                 if (!sessionsMap[id].last_time || msgDate > new Date(sessionsMap[id].last_time)) {
                     sessionsMap[id].last_time = msg.dateTime;
                     sessionsMap[id].last_message = msg.text || `[${msg.type || 'Mídia'}]`;
-
                     const isEncerrado = msg.text && (msg.text.toLowerCase().includes('tchau') || msg.text.toLowerCase().includes('encerrado'));
                     sessionsMap[id].is_waiting = !msg.isEcho && !isEncerrado && sessionsMap[id].total_msgs >= 3;
                 }
-
-                // Descoberta do Agente Real: Se uma das 3 atendentes falou na conversa, a conversa é dela.
                 if (msg.isEcho && msg.authorName) {
                     if (ALLOWED_AGENTS.includes(msg.authorName)) {
                         sessionsMap[id].last_agent = msg.authorName;
@@ -870,8 +878,6 @@
                     }
                 }
             });
-
-            // Reatribuição do "Admin": Se a conversa foi identificada como de uma vendedora válida, ela é dona de todos os echos dessa conversa.
             Object.values(sessionsMap).forEach(s => {
                 if (ALLOWED_AGENTS.includes(s.last_agent)) {
                     s.messages.forEach(m => {
@@ -881,45 +887,53 @@
                     });
                 }
             });
-
             let sessions = Object.values(sessionsMap).map(s => {
                 s.diasInativos = (new Date() - new Date(s.last_time)) / (1000 * 60 * 60 * 24);
-
                 const ai = getAISimulation(s);
                 s.ai_summary = ai.summary;
                 s.ai_quality = ai.quality;
                 s.ai_color = ai.color;
-                s.ai_type = ai.type;
                 s.closedSale = ai.closedSale;
                 s.plano = ai.plano;
                 s.objecao = ai.objecao;
                 s.argumento = ai.argumento;
                 s.motivoFechamento = ai.motivoFechamento;
-
                 return s;
             });
-
-            // Garantindo que SOMENTE as 3 atendentes autorizadas existam no painel (Isso também elimina Sistema, Oeste, Admin etc)
             sessions = sessions.filter(s => ALLOWED_AGENTS.includes(s.last_agent));
-
-            // Filtro final da Atendente se necessário (aplica EM TUDO)
             if (agentFilter !== 'all') sessions = sessions.filter(s => s.last_agent === agentFilter);
             if (CURRENT_QUICK_FILTER === 'critical') sessions = sessions.filter(s => s.is_waiting);
-
-            sessions.sort((a, b) => new Date(b.last_time) - new Date(a.last_time));
+            sessions.sort((a, b) => {
+                let valA = a[SORT_COLUMN];
+                let valB = b[SORT_COLUMN];
+                if (SORT_COLUMN === 'last_time') {
+                    valA = new Date(a.last_time).getTime();
+                    valB = new Date(b.last_time).getTime();
+                } else if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                } else if (typeof valA === 'boolean') {
+                    valA = valA ? 1 : 0;
+                    valB = valB ? 1 : 0;
+                }
+                if (valA < valB) return SORT_ASC ? -1 : 1;
+                if (valA > valB) return SORT_ASC ? 1 : -1;
+                return 0;
+            });
             FILTERED_DATA = sessions;
             updateStats(sessions);
             updateCharts(sessions);
-
             renderPaginatedView();
         }
 
         function updateCharts(sessions) {
             const analysisSessions = sessions;
-
             const fechadas = analysisSessions.filter(s => s.closedSale);
             const naoFechadas = analysisSessions.filter(s => !s.closedSale);
-
+            const numTotalConversas = document.getElementById('big-total-conversas');
+            const numTotalVendas = document.getElementById('big-total-vendas');
+            if(numTotalConversas) numTotalConversas.textContent = analysisSessions.length;
+            if(numTotalVendas) numTotalVendas.textContent = fechadas.length;
             if (salesChartInstance) salesChartInstance.destroy();
             const canvasSales = document.getElementById('salesChart');
             if (canvasSales) {
@@ -936,18 +950,15 @@
                     options: { cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } } }
                 });
             }
-
             const countByProp = (arr, prop) => arr.reduce((acc, obj) => {
                 acc[obj[prop]] = (acc[obj[prop]] || 0) + 1;
                 return acc;
             }, {});
-
             if (volumeChartInstance) volumeChartInstance.destroy();
             const canvasVolume = document.getElementById('volumeChart');
             if (canvasVolume) {
                 document.getElementById('volume-title').textContent = `Volume de Conversas (${analysisSessions.length})`;
                 const volumeData = countByProp(analysisSessions, 'last_agent');
-
                 volumeChartInstance = new Chart(canvasVolume.getContext('2d'), {
                     type: 'pie',
                     data: {
@@ -1179,9 +1190,10 @@
                 <th>Cliente</th>
                 <th>Atendente</th>
                 <th>Resumo IA</th>
-                <th>Status</th>
-                <th>Vendeu?</th>
-                <th>IA</th>
+                <th onclick="toggleSort('is_waiting')" style="cursor: pointer; user-select: none;" title="Clique para ordenar">Status ↕</th>
+                <th onclick="toggleSort('closedSale')" style="cursor: pointer; user-select: none;" title="Clique para ordenar">Vendeu? ↕</th>
+                <th onclick="toggleSort('ai_quality')" style="cursor: pointer; user-select: none;" title="Clique para ordenar">IA ↕</th>
+                <th onclick="toggleSort('last_time')" style="cursor: pointer; user-select: none;" title="Clique para ordenar">Data ↕</th>
                 <th>Ações</th>
             `;
 
