@@ -464,7 +464,7 @@
             <span style="color:var(--text-muted); font-size: 0.9rem; font-weight: 600;">De:</span>
             <input type="date" id="filter-date-start" onchange="applyFilters()"
                 style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
-                
+
             <span style="color:var(--text-muted); font-size: 0.9rem; font-weight: 600; margin-left: 0.5rem;">Até:</span>
             <input type="date" id="filter-date-end" onchange="applyFilters()"
                 style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 10px; border-radius:10px;">
@@ -531,16 +531,22 @@
             </div>
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-            <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                <h4 style="color: var(--accent-green); margin-bottom: 0.5rem; font-size: 1.1rem;">Comportamento: Fechadas</h4>
+            <div
+                style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <h4 style="color: var(--accent-green); margin-bottom: 0.5rem; font-size: 1.1rem;">Comportamento:
+                    Fechadas</h4>
                 <p id="insight-fechadas" style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
                     Analisando os dados...
                 </p>
-                <h4 style="color: var(--primary); margin-top: 1rem; margin-bottom: 0.5rem; font-size: 1.1rem;">Top Motivos do Fechamento</h4>
-                <ul id="insight-motivos" style="font-size: 0.9rem; color: var(--text-muted); padding-left: 1.2rem; line-height: 1.6;"></ul>
+                <h4 style="color: var(--primary); margin-top: 1rem; margin-bottom: 0.5rem; font-size: 1.1rem;">Top
+                    Motivos do Fechamento</h4>
+                <ul id="insight-motivos"
+                    style="font-size: 0.9rem; color: var(--text-muted); padding-left: 1.2rem; line-height: 1.6;"></ul>
             </div>
-            <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                <h4 style="color: var(--accent-red); margin-bottom: 0.5rem; font-size: 1.1rem;">Padrão: Não Fechadas (Atendentes)</h4>
+            <div
+                style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <h4 style="color: var(--accent-red); margin-bottom: 0.5rem; font-size: 1.1rem;">Padrão: Não Fechadas
+                    (Atendentes)</h4>
                 <p id="insight-nao-fechadas" style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6;">
                     Analisando os dados...
                 </p>
@@ -552,13 +558,13 @@
         <div class="table-card">
             <table id="data-table">
                 <thead>
-                        <th>Cliente</th>
-                        <th>Atendente</th>
-                        <th>Resumo IA</th>
-                        <th>Status</th>
-                        <th>Vendeu?</th>
-                        <th>IA</th>
-                        <th>Ações</th>
+                    <th>Cliente</th>
+                    <th>Atendente</th>
+                    <th>Resumo IA</th>
+                    <th>Status</th>
+                    <th>Vendeu?</th>
+                    <th>IA</th>
+                    <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody id="table-body">
@@ -675,7 +681,7 @@
             // 5. Qualificação Qualitativa Real
             const hasTechnical = fullText.includes('cônjuge') || fullText.includes('dependente') || fullText.includes('carência');
             const hasPersuasion = fullText.includes('promoção') || fullText.includes('benefício') || fullText.includes('aproveita');
-            
+
             const responseTimes = [];
             let agentAudios = 0;
             let clientAudios = 0;
@@ -696,7 +702,7 @@
 
             const avgWait = responseTimes.length ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length : 0;
             const isFechadoText = fullText.includes('fechado') || fullText.includes('pode ser') || fullText.includes('pix') || fullText.includes('pagar') || fullText.includes('link');
-            
+
             // Regra de Venda Real
             const closedSale = isFechadoText && (session.diasInativos > 8);
 
@@ -707,15 +713,15 @@
             else if (agentAudios > 0) qualIdx = 2; // Regular (Esforço de vendas por áudio)
             else if (avgWait > 60 || session.total_msgs < 2) qualIdx = 3; // Ruim (Lenta ou ignorada)
 
-            return { 
-                summary: plano !== 'Não identificado' ? `Interesse no ${plano}` : 'Conversa Geral', 
-                quality: AI_QUALITIES[qualIdx], 
-                color: AI_COLORS[qualIdx], 
-                closedSale, 
-                plano, 
-                objecao, 
-                argumento, 
-                motivoFechamento 
+            return {
+                summary: plano !== 'Não identificado' ? `Interesse no ${plano}` : 'Conversa Geral',
+                quality: AI_QUALITIES[qualIdx],
+                color: AI_COLORS[qualIdx],
+                closedSale,
+                plano,
+                objecao,
+                argumento,
+                motivoFechamento
             };
         }
 
@@ -743,7 +749,13 @@
             tableCard.style.opacity = '0.5';
 
             try {
-                const response = await fetch(WEBHOOK_URL);
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
                 const textData = await response.text();
                 // If API returns entirely empty text, we do a silent quit, ignoring it completely. No error, no table erase.
                 if (!textData) return;
@@ -815,7 +827,7 @@
             const sessionsMap = {};
             filteredMessages.forEach(msg => {
                 const id = msg.chatId || 'Desconhecido';
-                
+
                 // Tratativa para templates que vêm vazios mas indicam uma inatividade/tentativa (opcional, só no texto)
                 if (msg.type && msg.type.includes('template') && !msg.text) {
                     msg.text = "Olá! Deseja dar continuidade ao atendimento?";
@@ -841,9 +853,9 @@
                 if (!sessionsMap[id].last_time || msgDate > new Date(sessionsMap[id].last_time)) {
                     sessionsMap[id].last_time = msg.dateTime;
                     sessionsMap[id].last_message = msg.text || `[${msg.type || 'Mídia'}]`;
-                    
+
                     const isEncerrado = msg.text && (msg.text.toLowerCase().includes('tchau') || msg.text.toLowerCase().includes('encerrado'));
-                    sessionsMap[id].is_waiting = !msg.isEcho && !isEncerrado && sessionsMap[id].total_msgs >= 3; 
+                    sessionsMap[id].is_waiting = !msg.isEcho && !isEncerrado && sessionsMap[id].total_msgs >= 3;
                 }
 
                 // Descoberta do Agente Real: Se uma das 3 atendentes falou na conversa, a conversa é dela.
@@ -918,7 +930,7 @@
                             borderWidth: 0
                         }]
                     },
-                    options: { cutout: '70%', plugins: { legend: { position: 'bottom', labels: {color: '#94a3b8'} } } }
+                    options: { cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8' } } } }
                 });
             }
 
@@ -932,7 +944,7 @@
             if (canvasVolume) {
                 document.getElementById('volume-title').textContent = `Volume de Conversas (${analysisSessions.length})`;
                 const volumeData = countByProp(analysisSessions, 'last_agent');
-                
+
                 volumeChartInstance = new Chart(canvasVolume.getContext('2d'), {
                     type: 'pie',
                     data: {
@@ -943,7 +955,7 @@
                             borderWidth: 0
                         }]
                     },
-                    options: { plugins: { legend: { position: 'right', labels: {color: '#94a3b8', font: {size: 10}} } } }
+                    options: { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } } }
                 });
             }
 
@@ -951,7 +963,7 @@
             const canvasQuality = document.getElementById('qualityChart');
             if (canvasQuality) {
                 const qualityData = countByProp(analysisSessions, 'ai_quality');
-                
+
                 // Ordenação decrescente: maior fatia primeiro, mantendo as cores travadas à semântica
                 const sortedQualityLabels = Object.keys(qualityData).sort((a, b) => qualityData[b] - qualityData[a]);
                 const sortedQualityColors = sortedQualityLabels.map(label => AI_COLORS[AI_QUALITIES.indexOf(label)] || '#cbd5e1');
@@ -967,7 +979,7 @@
                             borderWidth: 0
                         }]
                     },
-                    options: { plugins: { legend: { position: 'right', labels: {color: '#94a3b8', font: {size: 10}} } } }
+                    options: { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } } }
                 });
             }
 
@@ -1004,7 +1016,7 @@
                             backgroundColor: ['#f43f5e', '#ec4899', '#c084fc', '#818cf8', '#2dd4bf', '#fb923c']
                         }]
                     },
-                    options: { plugins: { legend: { position: 'right', labels: {color: '#94a3b8', font: {size: 10}} } } }
+                    options: { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } } }
                 });
             }
 
@@ -1024,7 +1036,7 @@
                     options: {
                         indexAxis: 'y',
                         plugins: { legend: { display: false } },
-                        scales: { x: { display: false }, y: { ticks: { color: '#94a3b8', font: {size: 10} } } }
+                        scales: { x: { display: false }, y: { ticks: { color: '#94a3b8', font: { size: 10 } } } }
                     }
                 });
             }
@@ -1042,17 +1054,17 @@
                             backgroundColor: ['#34d399', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899']
                         }]
                     },
-                    options: { plugins: { legend: { position: 'right', labels: {color: '#94a3b8', font: {size: 10}} } } }
+                    options: { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } } }
                 });
             }
 
             const getTop1 = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1])[0] || ['Nenhum', 0];
-            const getTop3 = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0,3);
+            const getTop3 = (obj) => Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
             const topArgFechadas = getTop1(countByProp(fechadas, 'argumento'))[0];
             const comumMsgList = ["Uso frequente de áudio para criar confiança", "Respostas rápidas (menos de 5 min)", "Foque em benefícios focados na proteção da família", "Contorno de objeção focado na clareza dos prazos"];
             const comumFechadas = comumMsgList[Math.floor(Math.random() * comumMsgList.length)];
-            
+
             const insightFechadas = document.getElementById('insight-fechadas');
             if (insightFechadas) {
                 insightFechadas.innerHTML = `
@@ -1073,7 +1085,7 @@
                 "A atendente aprofunda as questões técnicas, mas perde o timing de fechar a proposta.",
                 "Não oferece alternativas em planos mais acessíveis quando percebe a objeção de preço."
             ];
-            
+
             const insightNaoFechadas = document.getElementById('insight-nao-fechadas');
             if (insightNaoFechadas && topObjErro) {
                 insightNaoFechadas.innerHTML = `
@@ -1081,7 +1093,7 @@
                     <b>Maior barreira não superada:</b> A objeção de <b>"${topObjErro}"</b> foi o principal motivo das vendas não processadas.
                 `;
             } else if (insightNaoFechadas) {
-                 insightNaoFechadas.innerHTML = "Não há dados suficientes ou não houve perdas registradas."
+                insightNaoFechadas.innerHTML = "Não há dados suficientes ou não houve perdas registradas."
             }
 
             // Insights de Performance (Nova Visão de Atendentes)
@@ -1094,7 +1106,7 @@
                 const agent = s.last_agent;
                 if (!agentStats[agent]) agentStats[agent] = { total: 0, otimas: 0, boas: 0, ruins: 0, pessimas: 0 };
                 agentStats[agent].total++;
-                
+
                 if (s.ai_quality === 'Ótima') agentStats[agent].otimas++;
                 else if (s.ai_quality === 'Boa') agentStats[agent].boas++;
                 else if (s.ai_quality === 'Regular') agentStats[agent].ruins++;
@@ -1108,11 +1120,11 @@
                 .sort((a, b) => b[1].otimas - a[1].otimas)
                 .forEach(([name, stats]) => {
                     const conversoes = stats.otimas;
-                    
+
                     let callToAction = '✅ Desempenho equilibrado. Mantendo o fluxo de vendas.';
                     if (conversoes >= 1) callToAction = '🥇 Ótimo domínio das objeções de clientes.';
                     if (stats.otimas === 0 && stats.total > 0) callToAction = '⚠️ Tem feito a parte técnica, mas precisa melhorar fechamento.';
-                    
+
                     let aiRecommendation = "Recomendação: Continue aplicando as boas práticas de quebra de objeções.";
                     if (stats.otimas === 0) aiRecommendation = "Recomendação: Analise as conversas Fechadas no painel. Tente focar mais nos argumentos de assistência 24h e coberturas exclusivas em vez de debater apenas o preço.";
                     if (stats.pessimas > stats.boas) aiRecommendation = "Recomendação: Fique atento ao tempo de resposta! Evite deixar o cliente mais de 15 minutos esperando.";
@@ -1258,7 +1270,7 @@
 
                 // Respeitando as quebras de linha para mensagens longas
                 let content = m.text ? m.text.replace(/\n/g, '<br>') : '';
-                
+
                 if (m.type === 'image') {
                     content = `<img src="${m.contentUri}" style="max-width:100%; border-radius:8px; margin: 8px 0; display:block">`;
                 } else if (m.type === 'audio') {
