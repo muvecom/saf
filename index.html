@@ -619,7 +619,7 @@
         const ALLOWED_AGENTS = ["BRUNA SOUZA ROCHA", "LUANDA ROSARIO DIAS", "DEBORA CARVALHO DE S OLIVEIRA"];
 
         const AI_QUALITIES = ['Ótima', 'Boa', 'Regular', 'Ruim'];
-        const AI_COLORS = ['#fbbf24', '#22c55e', '#f97316', '#ef4444']; // Ouro, Verde, Laranja, Vermelho
+        const AI_COLORS = ['#22c55e', '#3b82f6', '#f97316', '#ef4444']; // Verde, Azul, Laranja, Vermelho
 
         const AI_SUMMARIES = {
             'objecao': [
@@ -660,8 +660,8 @@
             else if (fullText.includes('limite') || fullText.includes('cartão')) objecao = 'Falta Limite';
             else if (fullText.includes('carencia') || fullText.includes('carência')) objecao = 'Carência';
 
-            // 3. Identificação de Argumentos de Venda (Uso das vendedoras)
-            let argumento = 'Padrão';
+            // 3. Identificação de Argumentos de Venda
+            let argumento = 'Outros/Nenhum detectado';
             if (fullText.includes('24h') || fullText.includes('24 horas')) argumento = 'Assistência 24h';
             else if (fullText.includes('sem carência') || fullText.includes('sem carencia')) argumento = 'Sem Carência';
             else if (fullText.includes('sorteio')) argumento = 'Sorteio Mensal';
@@ -677,12 +677,23 @@
             const hasPersuasion = fullText.includes('promoção') || fullText.includes('benefício') || fullText.includes('aproveita');
             
             const responseTimes = [];
+            let agentAudios = 0;
+            let clientAudios = 0;
+
             for (let i = 1; i < session.messages.length; i++) {
                 if (session.messages[i].isEcho && !session.messages[i - 1].isEcho) {
                     const diff = (new Date(session.messages[i].dateTime) - new Date(session.messages[i - 1].dateTime)) / 60000;
                     responseTimes.push(diff);
                 }
             }
+
+            session.messages.forEach(m => {
+                if (m.type === 'audio') {
+                    if (m.isEcho) agentAudios++;
+                    else clientAudios++;
+                }
+            });
+
             const avgWait = responseTimes.length ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length : 0;
             const isFechadoText = fullText.includes('fechado') || fullText.includes('pode ser') || fullText.includes('pix') || fullText.includes('pagar') || fullText.includes('link');
             
@@ -692,6 +703,8 @@
             let qualIdx = 2; // Regular (Default)
             if (closedSale) qualIdx = 0; // Ótima
             else if (hasTechnical && hasPersuasion && avgWait < 15) qualIdx = 1; // Boa
+            else if (clientAudios > 0) qualIdx = 1; // Boa (Interação engajada por áudio)
+            else if (agentAudios > 0) qualIdx = 2; // Regular (Esforço de vendas por áudio)
             else if (avgWait > 60 || session.total_msgs < 2) qualIdx = 3; // Ruim (Lenta ou ignorada)
 
             return { 
@@ -840,6 +853,17 @@
                     } else if (sessionsMap[id].last_agent === 'Sistema') {
                         sessionsMap[id].last_agent = msg.authorName;
                     }
+                }
+            });
+
+            // Reatribuição do "Admin": Se a conversa foi identificada como de uma vendedora válida, ela é dona de todos os echos dessa conversa.
+            Object.values(sessionsMap).forEach(s => {
+                if (ALLOWED_AGENTS.includes(s.last_agent)) {
+                    s.messages.forEach(m => {
+                        if (m.isEcho && (!m.authorName || m.authorName === 'Admin' || m.authorName === 'Oeste')) {
+                            m.authorName = s.last_agent;
+                        }
+                    });
                 }
             });
 
