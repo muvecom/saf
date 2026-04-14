@@ -487,6 +487,10 @@
 
     <div class="charts-container" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
         <div class="chart-card">
+            <h3 id="volume-title">Volume de Conversas (0)</h3>
+            <canvas id="volumeChart"></canvas>
+        </div>
+        <div class="chart-card">
             <h3>Qualidade das Conversas</h3>
             <canvas id="qualityChart"></canvas>
         </div>
@@ -604,6 +608,7 @@
         let RAW_MESSAGES = [];
         let CURRENT_QUICK_FILTER = 'all';
 
+        let volumeChartInstance = null;
         let qualityChartInstance = null;
         let salesChartInstance = null;
         let plansChartInstance = null;
@@ -637,23 +642,39 @@
         };
 
         function getAISimulation(session) {
-            let seed = 0;
-            for (let i = 0; i < session.chatId.length; i++) seed += session.chatId.charCodeAt(i);
-
             const fullText = session.messages.map(m => m.text || '').join(' ').toLowerCase();
 
-            let type = 'fluxo';
-            if (fullText.includes('caro') || fullText.includes('pensar') || fullText.includes('esposa') || fullText.includes('marido') || fullText.includes('outro plano') || fullText.includes('desconto') || fullText.includes('mais barato')) {
-                type = 'objecao';
-            } else if (fullText.includes('como funciona') || fullText.includes('cobre') || fullText.includes('carência') || fullText.includes('idade') || fullText.includes('dependente') || fullText.includes('benefício') || fullText.includes('pagamento')) {
-                type = 'duvida';
-            }
+            // 1. Identificação de Plano (Baseado em keywords do script real)
+            let plano = 'Não identificado';
+            if (fullText.includes('cuidar mais')) plano = 'Cuidar Mais';
+            else if (fullText.includes('prime 60')) plano = 'Prime 60';
+            else if (fullText.includes('prime 65')) plano = 'Prime 65';
+            else if (fullText.includes('prime 70')) plano = 'Prime 70';
+            else if (fullText.includes('cuidar 50')) plano = 'Cuidar 50';
 
-            const summaryList = AI_SUMMARIES[type];
-            const summary = summaryList[seed % summaryList.length];
+            // 2. Identificação de Objeção
+            let objecao = 'Nenhuma/Outra';
+            if (fullText.includes('caro') || fullText.includes('preço') || fullText.includes('valor')) objecao = 'Preço Alto';
+            else if (fullText.includes('pensar') || fullText.includes('depois')) objecao = 'Tem de Pensar';
+            else if (fullText.includes('concorrencia') || fullText.includes('outro plano')) objecao = 'Concorrência';
+            else if (fullText.includes('limite') || fullText.includes('cartão')) objecao = 'Falta Limite';
+            else if (fullText.includes('carencia') || fullText.includes('carência')) objecao = 'Carência';
 
-            // Simulando Critérios do Novo Workflow: Conhecimento, Persuasão e Fechamento
-            const hasTechnical = session.total_msgs > 5; // Demonstra que o Vendedor soube explicar e manter o caso
+            // 3. Identificação de Argumentos de Venda (Uso das vendedoras)
+            let argumento = 'Padrão';
+            if (fullText.includes('24h') || fullText.includes('24 horas')) argumento = 'Assistência 24h';
+            else if (fullText.includes('sem carência') || fullText.includes('sem carencia')) argumento = 'Sem Carência';
+            else if (fullText.includes('sorteio')) argumento = 'Sorteio Mensal';
+            else if (fullText.includes('desconto')) argumento = 'Benefícios em Vida';
+
+            // 4. Motivo de Fechamento (Se vendeu)
+            let motivoFechamento = 'Não informado';
+            if (fullText.includes('obrigado') || fullText.includes('perfeito')) motivoFechamento = 'Atendimento Rápido';
+            else if (fullText.includes('agora') || fullText.includes('já')) motivoFechamento = 'Necessidade Urgente';
+
+            // 5. Qualificação Qualitativa Real
+            const hasTechnical = fullText.includes('cônjuge') || fullText.includes('dependente') || fullText.includes('carência');
+            const hasPersuasion = fullText.includes('promoção') || fullText.includes('benefício') || fullText.includes('aproveita');
             
             const responseTimes = [];
             for (let i = 1; i < session.messages.length; i++) {
@@ -663,34 +684,26 @@
                 }
             }
             const avgWait = responseTimes.length ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length : 0;
+            const isFechadoText = fullText.includes('fechado') || fullText.includes('pode ser') || fullText.includes('pix') || fullText.includes('pagar') || fullText.includes('link');
             
-            // Persuasão: fluxo contínuo de conversas e quebra de objeções (vendas precisam de argumentação)
-            const hasPersuasion = avgWait < 20 && session.total_msgs > 3; 
-            
-            // Em Vendas, se atinge um tempo maior que 8 dias ou possui certas keywords claras, consideramos fechada
-            const isFechadoText = fullText.includes('fechado') || fullText.includes('pode ser') || fullText.includes('pix') || fullText.includes('pagar') || fullText.includes('obrigad') || fullText.includes('link') || fullText.includes('enviado');
-            
-            // Regra forte: "só com mais de 8 dias contar venda"
-            const closedSale = (hasPersuasion && isFechadoText) && (session.diasInativos > 8);
+            // Regra de Venda Real
+            const closedSale = isFechadoText && (session.diasInativos > 8);
 
-            let qualIdx = 1; // Boa
-            
+            let qualIdx = 2; // Regular (Default)
             if (closedSale) qualIdx = 0; // Ótima
-            else if (hasTechnical && hasPersuasion) qualIdx = 1; // Boa
-            else if (hasTechnical && !hasPersuasion) qualIdx = 2; // Regular
-            else qualIdx = 3; // Ruim
+            else if (hasTechnical && hasPersuasion && avgWait < 15) qualIdx = 1; // Boa
+            else if (avgWait > 60 || session.total_msgs < 2) qualIdx = 3; // Ruim (Lenta ou ignorada)
 
-            const PLANOS = ['Familiar', 'Individual', 'Sênior', 'Ouro'];
-            const OBJECTIONS_LIST = ['Preço Alto', 'Tem de Pensar', 'Concorrência', 'Falta Limite', 'Carência', 'Distância'];
-            const ARGUMENTS_LIST = ['Adesão Facilitada', 'Assistência 24h', 'Sem Carência', 'Benefícios em Vida', 'Sorteio Mensal'];
-            const MOTIVOS_FECHAMENTO = ['Valor Acessível', 'Necessidade Urgente', 'Confiança', 'Promoção', 'Atendimento Rápido'];
-            
-            const plano = PLANOS[seed % PLANOS.length];
-            const objecao = OBJECTIONS_LIST[(seed + 1) % OBJECTIONS_LIST.length];
-            const argumento = ARGUMENTS_LIST[(seed + 2) % ARGUMENTS_LIST.length];
-            const motivoFechamento = MOTIVOS_FECHAMENTO[(seed + 3) % MOTIVOS_FECHAMENTO.length];
-
-            return { summary, quality: AI_QUALITIES[qualIdx], color: AI_COLORS[qualIdx], type, closedSale, plano, objecao, argumento, motivoFechamento };
+            return { 
+                summary: plano !== 'Não identificado' ? `Interesse no ${plano}` : 'Conversa Geral', 
+                quality: AI_QUALITIES[qualIdx], 
+                color: AI_COLORS[qualIdx], 
+                closedSale, 
+                plano, 
+                objecao, 
+                argumento, 
+                motivoFechamento 
+            };
         }
 
         function changePage(direction) {
@@ -890,6 +903,26 @@
                 return acc;
             }, {});
 
+            if (volumeChartInstance) volumeChartInstance.destroy();
+            const canvasVolume = document.getElementById('volumeChart');
+            if (canvasVolume) {
+                document.getElementById('volume-title').textContent = `Volume de Conversas (${analysisSessions.length})`;
+                const volumeData = countByProp(analysisSessions, 'last_agent');
+                
+                volumeChartInstance = new Chart(canvasVolume.getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(volumeData),
+                        datasets: [{
+                            data: Object.values(volumeData),
+                            backgroundColor: ['#6366f1', '#eab308', '#2dd4bf', '#a855f7'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { plugins: { legend: { position: 'right', labels: {color: '#94a3b8', font: {size: 10}} } } }
+                });
+            }
+
             if (qualityChartInstance) qualityChartInstance.destroy();
             const canvasQuality = document.getElementById('qualityChart');
             if (canvasQuality) {
@@ -1051,7 +1084,7 @@
                     if (stats.otimas === 0 && stats.total > 0) callToAction = '⚠️ Tem feito a parte técnica, mas precisa melhorar fechamento.';
                     
                     let aiRecommendation = "Recomendação: Continue aplicando as boas práticas de quebra de objeções.";
-                    if (stats.otimas === 0) aiRecommendation = "Recomendação: Analise as conversas Fechadas no painel. Tente focar mais nos argumentos de Sorteio Mensal e Sem Carência em vez de debater apenas o preço.";
+                    if (stats.otimas === 0) aiRecommendation = "Recomendação: Analise as conversas Fechadas no painel. Tente focar mais nos argumentos de assistência 24h e coberturas exclusivas em vez de debater apenas o preço.";
                     if (stats.pessimas > stats.boas) aiRecommendation = "Recomendação: Fique atento ao tempo de resposta! Evite deixar o cliente mais de 15 minutos esperando.";
 
                     const div = document.createElement('div');
@@ -1063,7 +1096,7 @@
                     div.innerHTML = `
                         <div style="display:flex; justify-content:space-between; margin-bottom:4px">
                             <span><b>${name}</b></span>
-                            <span style="color:var(--accent-gold)">${conversoes} Vendas Ouro</span>
+                            <span style="color:var(--accent-gold)">${conversoes} Conversas/Vendas (Ótimas)</span>
                         </div>
                         <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.4">
                             <b>Análise:</b> ${callToAction}<br>
