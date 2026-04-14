@@ -951,13 +951,19 @@
             const canvasQuality = document.getElementById('qualityChart');
             if (canvasQuality) {
                 const qualityData = countByProp(analysisSessions, 'ai_quality');
+                
+                // Ordenação decrescente: maior fatia primeiro, mantendo as cores travadas à semântica
+                const sortedQualityLabels = Object.keys(qualityData).sort((a, b) => qualityData[b] - qualityData[a]);
+                const sortedQualityColors = sortedQualityLabels.map(label => AI_COLORS[AI_QUALITIES.indexOf(label)] || '#cbd5e1');
+                const sortedQualityValues = sortedQualityLabels.map(label => qualityData[label]);
+
                 qualityChartInstance = new Chart(canvasQuality.getContext('2d'), {
                     type: 'pie',
                     data: {
-                        labels: Object.keys(qualityData),
+                        labels: sortedQualityLabels,
                         datasets: [{
-                            data: Object.values(qualityData),
-                            backgroundColor: Object.keys(qualityData).map(label => AI_COLORS[AI_QUALITIES.indexOf(label)] || '#cbd5e1'),
+                            data: sortedQualityValues,
+                            backgroundColor: sortedQualityColors,
                             borderWidth: 0
                         }]
                     },
