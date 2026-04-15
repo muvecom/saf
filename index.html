@@ -997,16 +997,23 @@
                 });
             }
 
-            const planosVendidos = countByProp(fechadas, 'plano');
+            const getSortedChartData = (obj) => {
+                const sortedKeys = Object.keys(obj).sort((a, b) => obj[b] - obj[a]);
+                return { labels: sortedKeys, values: sortedKeys.map(k => obj[k]) };
+            };
+
+            const planosValidos = fechadas.filter(s => s.plano !== 'Não identificado');
+            const planosVendidos = getSortedChartData(countByProp(planosValidos, 'plano'));
+            
             if (plansChartInstance) plansChartInstance.destroy();
             const canvasPlans = document.getElementById('plansChart');
             if (canvasPlans) {
                 plansChartInstance = new Chart(canvasPlans.getContext('2d'), {
                     type: 'bar',
                     data: {
-                        labels: Object.keys(planosVendidos),
+                        labels: planosVendidos.labels,
                         datasets: [{
-                            data: Object.values(planosVendidos),
+                            data: planosVendidos.values,
                             backgroundColor: '#38bdf8'
                         }]
                     },
@@ -1017,33 +1024,38 @@
                 });
             }
 
-            const topObjecoes = countByProp(analysisSessions, 'objecao');
+            const objecoesValidas = analysisSessions.filter(s => s.objecao !== 'Nenhuma/Outra' && s.objecao !== 'Outros/Nenhum detectado');
+            const topObjecoes = getSortedChartData(countByProp(objecoesValidas, 'objecao'));
+
             if (objectionsChartInstance) objectionsChartInstance.destroy();
             const canvasObjs = document.getElementById('objectionsChart');
             if (canvasObjs) {
                 objectionsChartInstance = new Chart(canvasObjs.getContext('2d'), {
-                    type: 'polarArea',
+                    type: 'pie',
                     data: {
-                        labels: Object.keys(topObjecoes),
+                        labels: topObjecoes.labels,
                         datasets: [{
-                            data: Object.values(topObjecoes),
-                            backgroundColor: ['#f43f5e', '#ec4899', '#c084fc', '#818cf8', '#2dd4bf', '#fb923c']
+                            data: topObjecoes.values,
+                            backgroundColor: ['#f43f5e', '#ec4899', '#c084fc', '#818cf8', '#2dd4bf', '#fb923c'],
+                            borderWidth: 0
                         }]
                     },
                     options: { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } } }
                 });
             }
 
-            const topArgs = countByProp(analysisSessions, 'argumento');
+            const argsValidos = analysisSessions.filter(s => s.argumento !== 'Padrão' && s.argumento !== 'Outros/Nenhum detectado');
+            const topArgs = getSortedChartData(countByProp(argsValidos, 'argumento'));
+
             if (argumentsChartInstance) argumentsChartInstance.destroy();
             const canvasArgs = document.getElementById('argumentsChart');
             if (canvasArgs) {
                 argumentsChartInstance = new Chart(canvasArgs.getContext('2d'), {
                     type: 'bar',
                     data: {
-                        labels: Object.keys(topArgs),
+                        labels: topArgs.labels,
                         datasets: [{
-                            data: Object.values(topArgs),
+                            data: topArgs.values,
                             backgroundColor: '#fbbf24'
                         }]
                     },
@@ -1055,17 +1067,20 @@
                 });
             }
 
-            const motivosFechamento = countByProp(fechadas, 'motivoFechamento');
+            const motivosValidos = fechadas.filter(s => s.motivoFechamento !== 'Não informado');
+            const motivosFechamento = getSortedChartData(countByProp(motivosValidos, 'motivoFechamento'));
+
             if (motivosChartInstance) motivosChartInstance.destroy();
             const canvasMotivos = document.getElementById('motivosChart');
             if (canvasMotivos) {
                 motivosChartInstance = new Chart(canvasMotivos.getContext('2d'), {
                     type: 'doughnut',
                     data: {
-                        labels: Object.keys(motivosFechamento),
+                        labels: motivosFechamento.labels,
                         datasets: [{
-                            data: Object.values(motivosFechamento),
-                            backgroundColor: ['#34d399', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899']
+                            data: motivosFechamento.values,
+                            backgroundColor: ['#34d399', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899'],
+                            borderWidth: 0
                         }]
                     },
                     options: { plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 10 } } } } }
