@@ -1372,24 +1372,28 @@
 
         // Versão simplificada que não mexe na URL e não trava o carregamento inicial
         (function() {
-            let executado = false;
+            const agora = Date.now();
+            
+            // Se já disparou nos últimos 2 segundos, aborta na hora
+            if (window.ultimoDisparo && (agora - window.ultimoDisparo < 2000)) {
+                return;
+            }
 
-            function iniciar() {
-                if (executado) return;
-                
+            function tentarIniciar() {
                 const params = new URLSearchParams(window.location.search);
                 if (params.has('token')) {
-                    executado = true;
-                    // O timeout de 100ms dá um respiro para o Angular estabilizar antes do fetch
-                    setTimeout(fetchData, 100);
+                    window.ultimoDisparo = Date.now();
+                    fetchData();
                 }
             }
 
-            // Executa o mais rápido possível
-            iniciar();
-            
-            // Caso o script carregue antes do DOM, garante uma segunda tentativa silenciosa
-            window.addEventListener('load', iniciar);
+            // Tenta rodar imediatamente
+            if (document.readyState === 'complete') {
+                tentarIniciar();
+            } else {
+                // Se o DOM não estiver pronto, espera o 'load'
+                window.addEventListener('load', tentarIniciar);
+            }
         })();
     </script>
 </body>
