@@ -769,14 +769,36 @@
             applyFilters();
         }
 
+        let requisicaoEmAndamento = false; // Trava de concorrência
+
         async function fetchData() {
+            // 1ª Trava: Se já estiver buscando, ignora chamadas atropeladas
+            if (requisicaoEmAndamento) {
+                console.warn("Bloqueado: Requisição já está em andamento.");
+                return; 
+            }
+
+            // 2ª Trava: Bloqueia qualquer reload em menos de 3 segundos
+            const agora = Date.now();
+            const ultimaBusca = sessionStorage.getItem('ultima_busca_api');
+            if (ultimaBusca && (agora - parseInt(ultimaBusca)) < 3000) {
+                console.warn("Bloqueado: Tentativa de refresh em menos de 3 segundos.");
+                return;
+            }
+
+            // Tranca a porta e registra a hora
+            requisicaoEmAndamento = true;
+            sessionStorage.setItem('ultima_busca_api', agora.toString());
+
             const loading = document.getElementById('loading');
             const tableCard = document.querySelector('.table-card');
             loading.style.display = 'flex';
             tableCard.style.opacity = '0.5';
+
             try {
                 const urlParams = new URLSearchParams(window.location.search);
                 const token = urlParams.get('token') || '';
+                
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'GET',
                     headers: {
@@ -784,11 +806,14 @@
                         'Content-Type': 'application/json'
                     }
                 });
+                
                 const textData = await response.text();
                 if (!textData) return;
+                
                 const json = JSON.parse(textData);
                 let allMessages = [];
                 const entries = Array.isArray(json) ? json : [json];
+                
                 entries.forEach(entry => {
                     const source = entry.body || entry;
                     if (source.data && Array.isArray(source.data)) {
@@ -807,6 +832,7 @@
                         allMessages.push(source);
                     }
                 });
+                
                 RAW_MESSAGES = allMessages;
                 populateAgentFilter();
                 applyFilters();
@@ -817,6 +843,8 @@
             } finally {
                 loading.style.display = 'none';
                 tableCard.style.opacity = '1';
+                // Libera a trava para o botão de atualizar voltar a funcionar
+                requisicaoEmAndamento = false; 
             }
         }
 
