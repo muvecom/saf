@@ -1370,24 +1370,31 @@
             document.getElementById('modal-history').style.display = 'none';
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Usa a API nativa de URL (não dá o erro 'Invalid URL' no Angular)
-            const currentUrl = new URL(window.location.href);
-            const urlToken = currentUrl.searchParams.get('token');
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
 
-            // Só roda se existir token na barra de endereços
-            if (urlToken) {
-                // 1. Salva o token na memória para o fetchData conseguir usar
-                window.SAFE_TOKEN = urlToken;
+            if (token) {
+                const agora = Date.now();
+                // Usamos um nome de chave bem específico para não conflitar com nada
+                const ultimaChamada = localStorage.getItem('_saf_last_sync_' + token);
                 
-                // 2. Apaga o token da URL imediatamente
-                currentUrl.searchParams.delete('token');
-                window.history.replaceState(null, '', currentUrl.toString());
+                // Se a última execução foi há menos de 10 segundos, mata o processo aqui
+                if (ultimaChamada && (agora - parseInt(ultimaChamada) < 10000)) {
+                    console.log("F5 detectado ou recarregamento de iframe. Bloqueando duplicata.");
+                    return;
+                }
+
+                // Salva o momento da execução e dispara
+                localStorage.setItem('_saf_last_sync_' + token, agora);
                 
-                // 3. Dispara a busca
-                fetchData();
+                if (document.readyState === 'complete') {
+                    fetchData();
+                } else {
+                    window.addEventListener('load', fetchData);
+                }
             }
-        });
+        })();
     </script>
 </body>
 
