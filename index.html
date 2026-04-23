@@ -796,8 +796,7 @@
             tableCard.style.opacity = '0.5';
 
             try {
-                const urlParams = new URLSearchParams(window.location.search);
-                const token = urlParams.get('token') || '';
+                const token = window.SAFE_TOKEN || new URLSearchParams(window.location.search).get('token') || '';
                 
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'GET',
@@ -1371,35 +1370,24 @@
             document.getElementById('modal-history').style.display = 'none';
         }
 
-        (function() {
-            function inicializar() {
-                const params = new URLSearchParams(window.location.search);
-                const token = params.get('token');
+        document.addEventListener('DOMContentLoaded', () => {
+            // Usa a API nativa de URL (não dá o erro 'Invalid URL' no Angular)
+            const currentUrl = new URL(window.location.href);
+            const urlToken = currentUrl.searchParams.get('token');
+
+            // Só roda se existir token na barra de endereços
+            if (urlToken) {
+                // 1. Salva o token na memória para o fetchData conseguir usar
+                window.SAFE_TOKEN = urlToken;
                 
-                if (!token) return;
-
-                const agora = Date.now();
-                const ultimaExecucao = localStorage.getItem('last_fetch_' + token);
-                const INTERVALO_MINIMO = 5000; // 5 segundos de bloqueio total
-
-                // Se já rodou nos últimos 5 segundos, aborta silenciosamente
-                if (ultimaExecucao && (agora - ultimaExecucao < INTERVALO_MINIMO)) {
-                    console.log("Carga duplicada bloqueada pela trava de segurança.");
-                    return;
-                }
-
-                // Registra a execução AGORA e chama a função
-                localStorage.setItem('last_fetch_' + token, agora);
+                // 2. Apaga o token da URL imediatamente
+                currentUrl.searchParams.delete('token');
+                window.history.replaceState(null, '', currentUrl.toString());
+                
+                // 3. Dispara a busca
                 fetchData();
             }
-
-            // Execução imediata e via DOMContentLoaded para garantir
-            if (document.readyState === 'complete') {
-                inicializar();
-            } else {
-                window.addEventListener('load', inicializar);
-            }
-        })();
+        });
     </script>
 </body>
 
