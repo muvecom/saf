@@ -1343,7 +1343,14 @@
             document.getElementById('modal-history').style.display = 'none';
         }
 
-        fetchData();
+        // Substitua o fetchData(); final por isso:
+        document.addEventListener('DOMContentLoaded', () => {
+            // Verifica se já não foi carregado para evitar duplicidade
+            if (!window.alreadyLoaded) {
+                fetchData();
+                window.alreadyLoaded = true;
+            }
+        });
     </script>
 </body>
 
