@@ -1345,16 +1345,28 @@
 
         (function() {
             function inicializar() {
-                if (window.jaCarregou) return;
-                
                 const params = new URLSearchParams(window.location.search);
-                if (params.has('token')) {
-                    window.jaCarregou = true;
+                const token = params.get('token');
+                
+                if (!token) return;
+
+                // Criamos uma chave única baseada no token para evitar ID duplicado
+                const lockKey = 'loaded_' + token;
+                const jaCarregouNestaSessao = sessionStorage.getItem(lockKey);
+
+                if (!jaCarregouNestaSessao) {
+                    // Marca como carregado ANTES de chamar a função
+                    sessionStorage.setItem(lockKey, 'true');
                     fetchData();
+                    
+                    // Opcional: Remove a trava após 3 segundos para permitir 
+                    // que o botão "Atualizar" ou um novo F5 manual funcione depois
+                    setTimeout(() => {
+                        sessionStorage.removeItem(lockKey);
+                    }, 3000);
                 }
             }
 
-            // Tenta rodar assim que o DOM estiver pronto
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', inicializar);
             } else {
