@@ -1372,27 +1372,31 @@
 
         // Versão simplificada que não mexe na URL e não trava o carregamento inicial
         (function() {
+            // 1. Verifica se já existe uma marca de tempo na janela (window)
+            // Isso evita que o segundo carregamento do iframe dispare o fetch
             const agora = Date.now();
-            
-            // Se já disparou nos últimos 2 segundos, aborta na hora
-            if (window.ultimoDisparo && (agora - window.ultimoDisparo < 2000)) {
+            if (window.lastFetchTime && (agora - window.lastFetchTime < 3000)) {
+                console.log("Bloqueio de fetch duplicado ativo.");
                 return;
             }
 
-            function tentarIniciar() {
+            function dispararCarga() {
                 const params = new URLSearchParams(window.location.search);
-                if (params.has('token')) {
-                    window.ultimoDisparo = Date.now();
+                const token = params.get('token');
+                
+                if (token) {
+                    // Registra o momento exato ANTES de disparar
+                    window.lastFetchTime = Date.now();
                     fetchData();
                 }
             }
 
-            // Tenta rodar imediatamente
+            // Tenta rodar o mais rápido possível
             if (document.readyState === 'complete') {
-                tentarIniciar();
+                dispararCarga();
             } else {
-                // Se o DOM não estiver pronto, espera o 'load'
-                window.addEventListener('load', tentarIniciar);
+                // Se o DOM não estiver 100%, espera o load para não falhar
+                window.addEventListener('load', dispararCarga);
             }
         })();
     </script>
