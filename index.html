@@ -1350,27 +1350,26 @@
                 
                 if (!token) return;
 
-                // Criamos uma chave única baseada no token para evitar ID duplicado
-                const lockKey = 'loaded_' + token;
-                const jaCarregouNestaSessao = sessionStorage.getItem(lockKey);
+                const agora = Date.now();
+                const ultimaExecucao = localStorage.getItem('last_fetch_' + token);
+                const INTERVALO_MINIMO = 5000; // 5 segundos de bloqueio total
 
-                if (!jaCarregouNestaSessao) {
-                    // Marca como carregado ANTES de chamar a função
-                    sessionStorage.setItem(lockKey, 'true');
-                    fetchData();
-                    
-                    // Opcional: Remove a trava após 3 segundos para permitir 
-                    // que o botão "Atualizar" ou um novo F5 manual funcione depois
-                    setTimeout(() => {
-                        sessionStorage.removeItem(lockKey);
-                    }, 3000);
+                // Se já rodou nos últimos 5 segundos, aborta silenciosamente
+                if (ultimaExecucao && (agora - ultimaExecucao < INTERVALO_MINIMO)) {
+                    console.log("Carga duplicada bloqueada pela trava de segurança.");
+                    return;
                 }
+
+                // Registra a execução AGORA e chama a função
+                localStorage.setItem('last_fetch_' + token, agora);
+                fetchData();
             }
 
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', inicializar);
-            } else {
+            // Execução imediata e via DOMContentLoaded para garantir
+            if (document.readyState === 'complete') {
                 inicializar();
+            } else {
+                window.addEventListener('load', inicializar);
             }
         })();
     </script>
