@@ -1370,30 +1370,26 @@
             document.getElementById('modal-history').style.display = 'none';
         }
 
+        // Versão simplificada que não mexe na URL e não trava o carregamento inicial
         (function() {
-            const params = new URLSearchParams(window.location.search);
-            const token = params.get('token');
+            let executado = false;
 
-            if (token) {
-                const agora = Date.now();
-                // Usamos um nome de chave bem específico para não conflitar com nada
-                const ultimaChamada = localStorage.getItem('_saf_last_sync_' + token);
+            function iniciar() {
+                if (executado) return;
                 
-                // Se a última execução foi há menos de 10 segundos, mata o processo aqui
-                if (ultimaChamada && (agora - parseInt(ultimaChamada) < 10000)) {
-                    console.log("F5 detectado ou recarregamento de iframe. Bloqueando duplicata.");
-                    return;
-                }
-
-                // Salva o momento da execução e dispara
-                localStorage.setItem('_saf_last_sync_' + token, agora);
-                
-                if (document.readyState === 'complete') {
-                    fetchData();
-                } else {
-                    window.addEventListener('load', fetchData);
+                const params = new URLSearchParams(window.location.search);
+                if (params.has('token')) {
+                    executado = true;
+                    // O timeout de 100ms dá um respiro para o Angular estabilizar antes do fetch
+                    setTimeout(fetchData, 100);
                 }
             }
+
+            // Executa o mais rápido possível
+            iniciar();
+            
+            // Caso o script carregue antes do DOM, garante uma segunda tentativa silenciosa
+            window.addEventListener('load', iniciar);
         })();
     </script>
 </body>
