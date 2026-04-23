@@ -1343,14 +1343,30 @@
             document.getElementById('modal-history').style.display = 'none';
         }
 
-        // Substitua o fetchData(); final por isso:
-        document.addEventListener('DOMContentLoaded', () => {
-            // Verifica se já não foi carregado para evitar duplicidade
-            if (!window.alreadyLoaded) {
-                fetchData();
-                window.alreadyLoaded = true;
+        // No final do seu <script> em saf.html
+        
+        async function init() {
+            // 1. Evita execução duplicada se o browser disparar o evento duas vezes
+            if (window.alreadyInitialized) return;
+            window.alreadyInitialized = true;
+        
+            // 2. Limpa a URL (se você estiver passando token via URL como na outra página)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('token')) {
+                const newUrl = window.location.pathname + window.location.search.replace(/[\?&]token=[^&]+/, '').replace(/^&/, '?');
+                window.history.replaceState({}, '', newUrl);
             }
-        });
+        
+            // 3. Dispara a carga inicial
+            await fetchData();
+        }
+        
+        // Garante que o DOM está pronto
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 
