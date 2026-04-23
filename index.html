@@ -1371,30 +1371,26 @@
         }
 
         (function() {
-            const params = new URLSearchParams(window.location.search);
-            const token = params.get('token');
+            // Usamos uma variável no window que o Angular geralmente não reseta 
+            // no double-render interno de frames
+            if (window.saf_carregado) return;
 
-            if (token) {
-                const storageKey = 'lock_' + btoa(token).substring(0, 16);
-                const agora = Date.now();
-                const ultimaExecucao = localStorage.getItem(storageKey);
+            function executar() {
+                const params = new URLSearchParams(window.location.search);
+                const token = params.get('token');
 
-                // Se executou há menos de 5 segundos, aborta TUDO antes de começar
-                if (ultimaExecucao && (agora - parseInt(ultimaExecucao) < 5000)) {
-                    console.log("Bloqueio de redundância: Já disparado.");
-                    return;
-                }
-
-                // Salva o timestamp imediatamente no disco do navegador
-                localStorage.setItem(storageKey, agora.toString());
-
-                // Dispara o fetch
-                if (document.readyState === 'complete') {
+                if (token && !window.saf_carregado) {
+                    window.saf_carregado = true;
+                    // O segredo: não limpamos a URL, assim o F5 sempre terá o token disponível
                     fetchData();
-                } else {
-                    window.addEventListener('load', fetchData);
                 }
             }
+
+            // Tenta rodar assim que o script é lido
+            executar();
+
+            // Garante que se o iframe atrasar, ele rode no load
+            window.addEventListener('load', executar);
         })();
     </script>
 </body>
