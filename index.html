@@ -1393,24 +1393,22 @@
             document.getElementById('modal-history').style.display = 'none';
         }
 
+        // BLOCO DE INICIALIZAÇÃO ÚNICA - COPIE DAQUI PARA BAIXO
         (function() {
-            // Trava de segurança atômica
             if (window.saf_carregado) return;
 
             function executar() {
-                // Se já carregou, sai fora imediatamente antes de qualquer lógica
                 if (window.saf_carregado) return;
                 
                 const params = new URLSearchParams(window.location.search);
                 const token = params.get('token');
 
                 if (token) {
-                    window.saf_carregado = true; // Seta a trava ANTES do fetch
+                    window.saf_carregado = true;
                     fetchData();
                 }
             }
 
-            // USAR APENAS UM GATILHO. O 'load' é o ideal para Iframes.
             if (document.readyState === 'complete') {
                 executar();
             } else {
@@ -1419,5 +1417,4 @@
         })();
     </script>
 </body>
-
 </html>
