@@ -1370,33 +1370,30 @@
             document.getElementById('modal-history').style.display = 'none';
         }
 
-        // Versão simplificada que não mexe na URL e não trava o carregamento inicial
         (function() {
-            // 1. Verifica se já existe uma marca de tempo na janela (window)
-            // Isso evita que o segundo carregamento do iframe dispare o fetch
-            const agora = Date.now();
-            if (window.lastFetchTime && (agora - window.lastFetchTime < 3000)) {
-                console.log("Bloqueio de fetch duplicado ativo.");
-                return;
-            }
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
 
-            function dispararCarga() {
-                const params = new URLSearchParams(window.location.search);
-                const token = params.get('token');
-                
-                if (token) {
-                    // Registra o momento exato ANTES de disparar
-                    window.lastFetchTime = Date.now();
-                    fetchData();
+            if (token) {
+                const storageKey = 'lock_' + btoa(token).substring(0, 16);
+                const agora = Date.now();
+                const ultimaExecucao = localStorage.getItem(storageKey);
+
+                // Se executou há menos de 5 segundos, aborta TUDO antes de começar
+                if (ultimaExecucao && (agora - parseInt(ultimaExecucao) < 5000)) {
+                    console.log("Bloqueio de redundância: Já disparado.");
+                    return;
                 }
-            }
 
-            // Tenta rodar o mais rápido possível
-            if (document.readyState === 'complete') {
-                dispararCarga();
-            } else {
-                // Se o DOM não estiver 100%, espera o load para não falhar
-                window.addEventListener('load', dispararCarga);
+                // Salva o timestamp imediatamente no disco do navegador
+                localStorage.setItem(storageKey, agora.toString());
+
+                // Dispara o fetch
+                if (document.readyState === 'complete') {
+                    fetchData();
+                } else {
+                    window.addEventListener('load', fetchData);
+                }
             }
         })();
     </script>
