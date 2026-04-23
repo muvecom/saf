@@ -1350,7 +1350,30 @@
                     const textColor = m.isEcho ? '#0f172a' : 'var(--primary)';
                     content = `<div style="background:rgba(0,0,0,0.1); padding:10px; border-radius:8px; margin:8px 0;">
                                  <a href="${m.contentUri || '#'}" target="_blank" style="color:${textColor}; text-decoration: underline;">📎 Abrir Mídia: ${m.type.toUpperCase() || 'Arquivo'}</a>
-                               </div>`;
+                               </div>`;(function() {
+            // Trava de segurança atômica
+            if (window.saf_carregado) return;
+
+            function executar() {
+                // Se já carregou, sai fora imediatamente antes de qualquer lógica
+                if (window.saf_carregado) return;
+                
+                const params = new URLSearchParams(window.location.search);
+                const token = params.get('token');
+
+                if (token) {
+                    window.saf_carregado = true; // Seta a trava ANTES do fetch
+                    fetchData();
+                }
+            }
+
+            // USAR APENAS UM GATILHO. O 'load' é o ideal para Iframes.
+            if (document.readyState === 'complete') {
+                executar();
+            } else {
+                window.addEventListener('load', executar);
+            }
+        })();
                 }
 
                 if (!content && !author) content = '<i>Cliente e atendente trocaram documentos</i>';
@@ -1371,26 +1394,28 @@
         }
 
         (function() {
-            // Usamos uma variável no window que o Angular geralmente não reseta 
-            // no double-render interno de frames
+            // Trava de segurança atômica
             if (window.saf_carregado) return;
 
             function executar() {
+                // Se já carregou, sai fora imediatamente antes de qualquer lógica
+                if (window.saf_carregado) return;
+                
                 const params = new URLSearchParams(window.location.search);
                 const token = params.get('token');
 
-                if (token && !window.saf_carregado) {
-                    window.saf_carregado = true;
-                    // O segredo: não limpamos a URL, assim o F5 sempre terá o token disponível
+                if (token) {
+                    window.saf_carregado = true; // Seta a trava ANTES do fetch
                     fetchData();
                 }
             }
 
-            // Tenta rodar assim que o script é lido
-            executar();
-
-            // Garante que se o iframe atrasar, ele rode no load
-            window.addEventListener('load', executar);
+            // USAR APENAS UM GATILHO. O 'load' é o ideal para Iframes.
+            if (document.readyState === 'complete') {
+                executar();
+            } else {
+                window.addEventListener('load', executar);
+            }
         })();
     </script>
 </body>
