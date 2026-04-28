@@ -623,7 +623,7 @@
     </div>
 
     <script>
-        const WEBHOOK_URL = 'https://evo.muvecom.com.br/webhook/a4e5db67-6733-4e37-b4ba-6a02ac23baf3';
+        const WEBHOOK_URL = 'https://api.muvecom.com.br/v1/a4e5db67-6733-4e37-b4ba-6a02ac23baf3';
         const PAGE_SIZE = 100;
         let CURRENT_PAGE = 1;
         let FILTERED_DATA = [];
@@ -769,35 +769,14 @@
             applyFilters();
         }
 
-        let requisicaoEmAndamento = false; // Trava de concorrência
-
         async function fetchData() {
-            // 1ª Trava: Se já estiver buscando, ignora chamadas atropeladas
-            if (requisicaoEmAndamento) {
-                console.warn("Bloqueado: Requisição já está em andamento.");
-                return; 
-            }
-
-            // 2ª Trava: Bloqueia qualquer reload em menos de 3 segundos
-            const agora = Date.now();
-            const ultimaBusca = sessionStorage.getItem('ultima_busca_api');
-            if (ultimaBusca && (agora - parseInt(ultimaBusca)) < 3000) {
-                console.warn("Bloqueado: Tentativa de refresh em menos de 3 segundos.");
-                return;
-            }
-
-            // Tranca a porta e registra a hora
-            requisicaoEmAndamento = true;
-            sessionStorage.setItem('ultima_busca_api', agora.toString());
-
             const loading = document.getElementById('loading');
             const tableCard = document.querySelector('.table-card');
             loading.style.display = 'flex';
             tableCard.style.opacity = '0.5';
-
             try {
-                const token = window.SAFE_TOKEN || new URLSearchParams(window.location.search).get('token') || '';
-                
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get('token') || '';
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'GET',
                     headers: {
@@ -805,14 +784,11 @@
                         'Content-Type': 'application/json'
                     }
                 });
-                
                 const textData = await response.text();
                 if (!textData) return;
-                
                 const json = JSON.parse(textData);
                 let allMessages = [];
                 const entries = Array.isArray(json) ? json : [json];
-                
                 entries.forEach(entry => {
                     const source = entry.body || entry;
                     if (source.data && Array.isArray(source.data)) {
@@ -831,7 +807,6 @@
                         allMessages.push(source);
                     }
                 });
-                
                 RAW_MESSAGES = allMessages;
                 populateAgentFilter();
                 applyFilters();
@@ -842,8 +817,6 @@
             } finally {
                 loading.style.display = 'none';
                 tableCard.style.opacity = '1';
-                // Libera a trava para o botão de atualizar voltar a funcionar
-                requisicaoEmAndamento = false; 
             }
         }
 
@@ -1350,30 +1323,7 @@
                     const textColor = m.isEcho ? '#0f172a' : 'var(--primary)';
                     content = `<div style="background:rgba(0,0,0,0.1); padding:10px; border-radius:8px; margin:8px 0;">
                                  <a href="${m.contentUri || '#'}" target="_blank" style="color:${textColor}; text-decoration: underline;">📎 Abrir Mídia: ${m.type.toUpperCase() || 'Arquivo'}</a>
-                               </div>`;(function() {
-            // Trava de segurança atômica
-            if (window.saf_carregado) return;
-
-            function executar() {
-                // Se já carregou, sai fora imediatamente antes de qualquer lógica
-                if (window.saf_carregado) return;
-                
-                const params = new URLSearchParams(window.location.search);
-                const token = params.get('token');
-
-                if (token) {
-                    window.saf_carregado = true; // Seta a trava ANTES do fetch
-                    fetchData();
-                }
-            }
-
-            // USAR APENAS UM GATILHO. O 'load' é o ideal para Iframes.
-            if (document.readyState === 'complete') {
-                executar();
-            } else {
-                window.addEventListener('load', executar);
-            }
-        })();
+                               </div>`;
                 }
 
                 if (!content && !author) content = '<i>Cliente e atendente trocaram documentos</i>';
@@ -1393,28 +1343,8 @@
             document.getElementById('modal-history').style.display = 'none';
         }
 
-        // BLOCO DE INICIALIZAÇÃO ÚNICA - COPIE DAQUI PARA BAIXO
-        (function() {
-            if (window.saf_carregado) return;
-
-            function executar() {
-                if (window.saf_carregado) return;
-                
-                const params = new URLSearchParams(window.location.search);
-                const token = params.get('token');
-
-                if (token) {
-                    window.saf_carregado = true;
-                    fetchData();
-                }
-            }
-
-            if (document.readyState === 'complete') {
-                executar();
-            } else {
-                window.addEventListener('load', executar);
-            }
-        })();
+        fetchData();
     </script>
 </body>
+
 </html>
