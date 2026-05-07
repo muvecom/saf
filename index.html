@@ -511,7 +511,7 @@
             <canvas id="volumeChart"></canvas>
         </div>
         <div class="chart-card">
-            <h3>Status de Vendas (> 8 dias)</h3>
+            <h3>Status de Vendas (Fechadas)</h3>
             <canvas id="salesChart"></canvas>
         </div>
         <div class="chart-card">
@@ -543,7 +543,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
             <h2 style="font-family: 'Outfit'; font-size: 1.5rem;">Insights Analíticos de Venda</h2>
             <div id="insight-warning" style="font-size: 0.85rem; color: var(--accent-yellow); display: none;">
-                ⚠️ Mostrando todos os dados pois faltam conversas com mais de 8 dias.
+                ⚠️ Mostrando todos os dados pois não foram detectadas vendas fechadas.
             </div>
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
@@ -720,19 +720,20 @@
             });
 
             const avgWait = responseTimes.length ? responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length : 0;
-            const isFechadoText = fullText.includes('fechado') || fullText.includes('pode ser') || fullText.includes('pix') || fullText.includes('pagar') || fullText.includes('link');
+            const hasChecklist = fullText.toLowerCase().includes('este contrato de plano funeral possui cobertura nacional');
+            const hasImage = session.messages.some(m => (m.type === 'image' || m.type === 'file') && !m.isEcho);
 
-            // Regra de Venda Real
-            const closedSale = isFechadoText && (session.diasInativos > 8);
+            // Regra de Venda Real: Script de fechamento + Comprovante (imagem/arquivo do cliente)
+            const closedSale = hasChecklist && hasImage;
             const totalClientMsgs = session.messages.filter(m => !m.isEcho).length;
 
             let qualIdx = 2; // Regular (Default)
             if (totalClientMsgs === 0) qualIdx = 4; // Não Iniciada
             else if (closedSale) qualIdx = 0; // Ótima
-            else if (hasTechnical && hasPersuasion && avgWait < 15) qualIdx = 1; // Boa
-            else if (clientAudios > 0) qualIdx = 1; // Boa (Interação engajada por áudio)
-            else if (agentAudios > 0) qualIdx = 2; // Regular (Esforço de vendas por áudio)
-            else if (avgWait > 60 || session.total_msgs < 2) qualIdx = 3; // Ruim (Lenta ou ignorada)
+            else if (hasTechnical && hasPersuasion && avgWait < 30) qualIdx = 1; // Boa (Técnica + Persuasão)
+            else if (clientAudios > 0 || session.total_msgs > 30) qualIdx = 1; // Boa (Interação engajada ou alto volume)
+            else if (agentAudios > 0 || session.total_msgs > 10) qualIdx = 2; // Regular (Esforço de vendas ou interação mínima)
+            else if (avgWait > 120 || session.total_msgs < 3) qualIdx = 3; // Ruim (Muito lenta ou quase sem interação)
 
             return {
                 summary: plano !== 'Não identificado' ? `Interesse no ${plano}` : 'Conversa Geral',
